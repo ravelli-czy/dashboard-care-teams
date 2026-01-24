@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* ===== Theme tokens (Tailwind v4) ===== */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+
+  /* Tokens “SaaS” */
+  --color-bg: 238 242 247;     /* #eef2f7 */
+  --color-fg: 15 23 42;        /* slate-900 */
+  --color-border: 226 232 240; /* slate-200 */
+  --color-muted: 100 116 139;  /* slate-500 */
+  --color-ring: 37 99 235;     /* blue-600 */
+}
+
+/* ===== Base styles ===== */
+@layer base {
+  /* >>> CLAVE para que tu local se vea como el canvas <<< */
+  html {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  /* Bordes consistentes */
+  *, ::before, ::after {
+    border-color: rgb(var(--color-border));
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: rgb(var(--color-bg));
+    color: rgb(var(--color-fg));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Inputs/Select: compacto como el canvas */
+  input, select, textarea, button {
+    font-family: inherit;
+  }
+
+  /* Normaliza inputs (incluye month) a “h-9” */
+  input[type="month"],
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  select,
+  textarea {
+    height: 36px;               /* h-9 (canvas) */
+    border-radius: 10px;
+    border: 1px solid rgb(var(--color-border));
+    background: #ffffff;
+    padding: 0 12px;
+    color: rgb(var(--color-fg));
+    outline: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(148 163 184); /* slate-400 */
+  }
+
+  /* Focus ring como el dashboard */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    box-shadow: 0 0 0 2px rgb(var(--color-ring) / 1);
+  }
+
+  /* File input: mantener natural pero con estilo */
+  input[type="file"] {
+    height: auto;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid rgb(var(--color-border));
+    background: #ffffff;
+  }
+
+  /* Recharts: tipografía consistente dentro de SVG */
+  .recharts-wrapper,
+  .recharts-surface {
+    font-family: inherit;
+  }
+}
+
+/* ===== Components ===== */
+@layer components {
+  .card-saas {
+    background: #ffffff;
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 12px; /* ~rounded-xl */
+    box-shadow: none;
+  }
+}
