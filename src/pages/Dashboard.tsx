@@ -2024,6 +2024,16 @@ const tppHealth = (() => {
     setAutoRange({ minMonth: null, maxMonth: null });
   };
 
+  if (rows.length === 0) {
+    return (
+      <div className={`min-h-screen ${UI.pageBg} flex items-center justify-center p-6`}>
+        <p className="text-center text-base text-slate-600">
+          Configura tu Dashboard en Simples Pasos y luego verás lo que esperas.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
       <div className="mx-auto max-w-7xl">
