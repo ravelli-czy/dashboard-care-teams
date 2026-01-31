@@ -2028,7 +2028,7 @@ const tppHealth = (() => {
 
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
@@ -2126,7 +2126,7 @@ const tppHealth = (() => {
         ) : null}
 
         {isEmpty ? (
-          <div className="mt-6 flex min-h-[50vh] items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center">
+          <div className="mt-6 flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center">
             <p className="text-base text-slate-600">
               Configura tu Dashboard en Simples Pasos y luego verás lo que esperas.
             </p>
