@@ -2024,15 +2024,7 @@ const tppHealth = (() => {
     setAutoRange({ minMonth: null, maxMonth: null });
   };
 
-  if (rows.length === 0) {
-    return (
-      <div className={`min-h-screen ${UI.pageBg} flex items-center justify-center p-6`}>
-        <p className="text-center text-base text-slate-600">
-          Configura tu Dashboard en Simples Pasos y luego verás lo que esperas.
-        </p>
-      </div>
-    );
-  }
+  const isEmpty = rows.length === 0;
 
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
@@ -2133,6 +2125,14 @@ const tppHealth = (() => {
           </div>
         ) : null}
 
+        {isEmpty ? (
+          <div className="mt-6 flex min-h-[50vh] items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center">
+            <p className="text-base text-slate-600">
+              Configura tu Dashboard en Simples Pasos y luego verás lo que esperas.
+            </p>
+          </div>
+        ) : (
+          <>
         {/* Filters */}
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
           <Card className={UI.card}>
@@ -2494,6 +2494,8 @@ const tppHealth = (() => {
         <div className="mt-6 text-xs text-slate-500">
           Sugerencia: aplica enfoque Pareto 80/20 sobre Top Organizaciones/Asignados para reducir demanda recurrente.
         </div>
+          </>
+        )}
       </div>
     </div>
   );
