@@ -100,7 +100,7 @@ if (typeof window !== "undefined") {
   const out: CoverageShift[] = [];
   if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
   if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#f59e0b", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#f59e0b", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
   return normalizeCoverageShifts(out);
 }
 
