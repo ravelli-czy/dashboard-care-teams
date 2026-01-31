@@ -48,7 +48,7 @@ const UI = {
   subtle: "text-xs text-slate-500",
   primary: "#2563eb", // azul principal (no-SLA y SLA cumplido)
   primaryLight: "#60a5fa",
-  warning: "#f59e0b", // naranjo (SLA incumplido)
+  warning: "#f97316", // naranjo (SLA incumplido)
   danger: "#ef4444",
   ok: "#22c55e",
   grid: "#e5e7eb",
@@ -138,7 +138,7 @@ const DAY_TO_IDX: Record<string, number> = {
 };
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "#2563eb",
-  guardia: "#f59e0b",
+  guardia: "#f97316",
 };
 
 function timeToMinutes(t: string) {
@@ -210,7 +210,7 @@ if (typeof window !== "undefined") {
   const out: CoverageShift[] = [];
   if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
   if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#22c55e", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#f59e0b", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#f97316", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
   return normalizeCoverageShifts(out);
 }
 
@@ -230,12 +230,6 @@ function pickShiftForDayHour(shifts: CoverageShift[], dayIdx: number, hour: numb
   }
   return null;
 }
-
-function outlineStyle(color?: string) {
-  if (!color) return {};
-  return { boxShadow: `inset 0 0 0 2px ${color}` } as React.CSSProperties;
-}
-
 
 function hexToRgba(hex: string, alpha: number) {
   const h = hex.replace("#", "");
@@ -270,9 +264,8 @@ function ShiftsLegend({ shifts }: { shifts: CoverageShift[] }) {
       {items.map((s) => (
         <span
           key={s.id}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
           title={s.name}
-          style={outlineStyle(s.color)}
         >
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color || "#94a3b8" }} />
           {s.name}
@@ -677,7 +670,7 @@ function buildExecutiveReportHtml(args: {
   const textMuted = "#64748b";
   const blue = UI.primary; // #2563eb
   const blue2 = UI.primaryLight; // #60a5fa
-  const warn = UI.warning; // #f59e0b
+  const warn = UI.warning; // #f97316
   const grid = "#e6edf6";
   const green = UI.ok; // #22c55e
 
