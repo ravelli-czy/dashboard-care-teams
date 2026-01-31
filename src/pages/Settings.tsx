@@ -43,15 +43,26 @@ const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i) => ({ idx: i, label: l }));
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
+const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "#2563eb",
+  guardia: "#f59e0b",
+};
 
 
 function uid(prefix = "shift") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
+function normalizeCoverageShifts(shifts: CoverageShift[]): CoverageShift[] {
+  return (shifts || []).map((shift) => {
+    const kind: NonNullable<CoverageShift["kind"]> = shift.kind ?? "normal";
+    return { ...shift, kind, color: SHIFT_KIND_COLORS[kind] };
+  });
+}
+
 function getCoverageShifts(settings: any): CoverageShift[] {
   const list = (settings as any)?.coverageShifts;
-  if (Array.isArray(list) && list.length) return list as CoverageShift[];
+  if (Array.isArray(list) && list.length) return normalizeCoverageShifts(list as CoverageShift[]);
 
 
 // Fallback: persistimos coverageShifts por fuera del schema del settings (localStorage directo)
@@ -60,30 +71,46 @@ if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(COVERAGE_SHIFTS_LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed as CoverageShift[];
+      if (Array.isArray(parsed) && parsed.length) return normalizeCoverageShifts(parsed as CoverageShift[]);
     }
   } catch {}
 }
 
   const legacy = (settings as any)?.shifts;
   if (!legacy) return [];
-  const mk = (id: string, name: string, color: string, start: string, end: string, days: number[]): CoverageShift => ({
-    id, name, color, start, end, days, enabled: true,
+  const mk = (
+    id: string,
+    name: string,
+    color: string,
+    start: string,
+    end: string,
+    days: number[],
+    kind: CoverageShift["kind"] = "normal"
+  ): CoverageShift => ({
+    id,
+    name,
+    color,
+    start,
+    end,
+    days,
+    enabled: true,
+    kind,
   });
 
   const out: CoverageShift[] = [];
-  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4]));
-  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#f59e0b", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4]));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6]));
-  return out;
+  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
+  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#f59e0b", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  return normalizeCoverageShifts(out);
 }
 
 function setCoverageShifts(settings: any, setSettings: any, shifts: CoverageShift[]) {
   // Guardamos en settings (si el schema lo permite) y también en localStorage directo (para no perderlo)
-  setSettings({ ...(settings as any), coverageShifts: shifts } as any);
+  const normalized = normalizeCoverageShifts(shifts);
+  setSettings({ ...(settings as any), coverageShifts: normalized } as any);
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(COVERAGE_SHIFTS_LS_KEY, JSON.stringify(shifts));
+      window.localStorage.setItem(COVERAGE_SHIFTS_LS_KEY, JSON.stringify(normalized));
     } catch {}
   }
 }
@@ -330,9 +357,10 @@ useEffect(() => {
     <div>
       <div className={UI.title}>Horario del Team (Turnos)</div>
       <div className={UI.subtitle}>
-        Define turnos con <span className="font-semibold">nombre</span> y <span className="font-semibold">color</span>. En el Dashboard,
-        el heatmap mantiene el azul y se pinta solo el <span className="font-semibold">borde</span> según el primer turno que cubra cada celda.
-        Si los turnos se solapan, se “unen” (se considera cubierto) y se usa el color del <span className="font-semibold">primer</span> turno (orden de la lista).
+        Define turnos con <span className="font-semibold">nombre</span> y <span className="font-semibold">tipo</span>. En el Dashboard,
+        el heatmap mantiene el azul y se pinta el degradé según el turno que cubra cada celda: azul para <span className="font-semibold">Normal</span> y
+        naranja para <span className="font-semibold">Guardia</span>. Si los turnos se solapan, se “unen” (se considera cubierto) y se usa el tipo del
+        <span className="font-semibold">primer</span> turno (orden de la lista).
       </div>
     </div>
 
@@ -340,16 +368,15 @@ useEffect(() => {
       className={UI.btnPrimary}
       onClick={() => {
         const current = getCoverageShifts(settings);
-        const palette = ["#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#14b8a6", "#0ea5e9"];
-        const nextColor = palette[current.length % palette.length];
         const next: CoverageShift = {
           id: uid(),
           name: `Turno ${current.length + 1}`,
-          color: nextColor,
+          color: SHIFT_KIND_COLORS.normal,
           days: [0, 1, 2, 3, 4],
           start: "09:00",
           end: "18:00",
           enabled: true,
+          kind: "normal",
         };
         setCoverageShifts(settings, setSettings, [...current, next]);
       }}
@@ -441,17 +468,28 @@ useEffect(() => {
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <div className={UI.label}>Color</div>
-                  <input
-                    className={UI.input}
-                    type="color"
-                    value={sh.color || "#22c55e"}
+                <div className="md:col-span-3">
+                  <div className={UI.label}>Tipo de Turno</div>
+                  <select
+                    className={UI.input + " mt-0"}
+                    value={sh.kind ?? "normal"}
                     onChange={(e) => {
-                      const next = shifts.map((x) => (x.id === sh.id ? { ...x, color: e.target.value } : x));
+                      const kind = e.target.value as CoverageShift["kind"];
+                      const next = shifts.map((x) =>
+                        x.id === sh.id
+                          ? {
+                              ...x,
+                              kind,
+                              color: SHIFT_KIND_COLORS[kind ?? "normal"],
+                            }
+                          : x
+                      );
                       setCoverageShifts(settings, setSettings, next);
                     }}
-                  />
+                  >
+                    <option value="normal">Turno Normal</option>
+                    <option value="guardia">Turno Guardia</option>
+                  </select>
                 </div>
 
                 <div className="md:col-span-2">

@@ -99,14 +99,21 @@ function hexToRgb(hex: string) {
 }
 
 // Blanco -> Azul más oscuro (según repetición)
-function heatBg(count: number, max: number) {
+function heatBg(count: number, max: number, color: string = UI.primary) {
   if (!count || !max) return { backgroundColor: "#ffffff", color: "#0f172a" };
-  const rgb = hexToRgb(UI.primary) || { r: 37, g: 99, b: 235 };
+  const rgb = hexToRgb(color) || { r: 37, g: 99, b: 235 };
   const ratio = Math.max(0, Math.min(1, count / max));
   const alpha = 0.06 + ratio * 0.82;
   const bg = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
   const text = alpha > 0.55 ? "#ffffff" : "#0f172a";
   return { backgroundColor: bg, color: text };
+}
+
+function normalizeCoverageShifts(shifts: CoverageShift[]): CoverageShift[] {
+  return (shifts || []).map((shift) => {
+    const kind: NonNullable<CoverageShift["kind"]> = shift.kind ?? "normal";
+    return { ...shift, kind, color: SHIFT_KIND_COLORS[kind] };
+  });
 }
 
 
@@ -122,11 +129,16 @@ type CoverageShift = {
   start: string; // "HH:MM"
   end: string;   // "HH:MM" (si start > end, cruza medianoche)
   enabled?: boolean;
+  kind?: "normal" | "guardia";
 };
 
 const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
+};
+const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "#2563eb",
+  guardia: "#f59e0b",
 };
 
 function timeToMinutes(t: string) {
@@ -159,7 +171,7 @@ function shiftCoversDayHour(shift: CoverageShift, dayIdx: number, hour: number) 
 
 function getCoverageShifts(settings: any): CoverageShift[] {
   const list = (settings as any)?.coverageShifts;
-  if (Array.isArray(list) && list.length) return list as CoverageShift[];
+  if (Array.isArray(list) && list.length) return normalizeCoverageShifts(list as CoverageShift[]);
 
 
 // Fallback: leer coverageShifts directo desde localStorage (por si el schema de settings los descarta)
@@ -168,7 +180,7 @@ if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(COVERAGE_SHIFTS_LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed as CoverageShift[];
+      if (Array.isArray(parsed) && parsed.length) return normalizeCoverageShifts(parsed as CoverageShift[]);
     }
   } catch {}
 }
@@ -176,15 +188,30 @@ if (typeof window !== "undefined") {
   // Compatibilidad: si venías usando settings.shifts (morning/afternoon/guard)
   const legacy = (settings as any)?.shifts;
   if (!legacy) return [];
-  const mk = (id: string, name: string, color: string, start: string, end: string, days: number[]): CoverageShift => ({
-    id, name, color, start, end, days, enabled: true,
+  const mk = (
+    id: string,
+    name: string,
+    color: string,
+    start: string,
+    end: string,
+    days: number[],
+    kind: CoverageShift["kind"] = "normal"
+  ): CoverageShift => ({
+    id,
+    name,
+    color,
+    start,
+    end,
+    days,
+    enabled: true,
+    kind,
   });
 
   const out: CoverageShift[] = [];
-  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4]));
-  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#22c55e", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4]));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6]));
-  return out;
+  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
+  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#22c55e", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  return normalizeCoverageShifts(out);
 }
 
 // Regla: si hay solape, se “une” (igual es cobertura). Visualmente se toma el color del PRIMER turno que calza.
@@ -1379,6 +1406,16 @@ export default function JiraExecutiveDashboard() {
 
   const { settings, setSettings } = useSettings();
   const coverageShifts = useMemo(() => getCoverageShifts(settings), [settings]);
+  const coverageKinds = useMemo(() => {
+    let hasNormal = false;
+    let hasGuardia = false;
+    for (const sh of coverageShifts) {
+      if (sh.enabled === false) continue;
+      if (sh.kind === "guardia") hasGuardia = true;
+      else hasNormal = true;
+    }
+    return { hasNormal, hasGuardia, split: hasNormal && hasGuardia };
+  }, [coverageShifts]);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -2375,7 +2412,8 @@ const tppHealth = (() => {
                 <div className="grid grid-cols-6 gap-2">
                   {series.hourHeatMap.data.map((x) => {
                     const sh = pickShiftForHour(coverageShifts, x.hour);
-                    const base = heatBg(x.tickets, series.hourHeatMap.max);
+                    const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                    const base = heatBg(x.tickets, series.hourHeatMap.max, baseColor);
                     return (
                       <div
                         key={x.hour}
@@ -2403,42 +2441,25 @@ const tppHealth = (() => {
                     <thead>
                       <tr className="text-left">
                         <th className="p-2 border border-slate-200 bg-slate-50">Hora</th>
-                        {series.weekHeatMap.days.map((d) => {
-                          const dayIdx = DAY_TO_IDX[d] ?? null;
-                          const shDay = dayIdx === null ? null : pickShiftForDay(coverageShifts, dayIdx);
-                          return (
-                            <th
-                              key={d}
-                              className="p-2 border border-slate-200 bg-slate-50"
-                              style={getShiftOverlayStyle(shDay?.color)}
-                              title={shDay ? shDay.name : undefined}
-                            >
-                              {d}
-                            </th>
-                          );
-                        })}
+                        {series.weekHeatMap.days.map((d) => (
+                          <th key={d} className="p-2 border border-slate-200 bg-slate-50">
+                            {d}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
                       {series.weekHeatMap.matrix.map((row: any) => (
                         <tr key={row.hour}>
-                          {(() => {
-                            const shHour = pickShiftForHour(coverageShifts, row.hour);
-                            return (
-                              <td
-                                className="p-2 border border-slate-200 font-semibold text-slate-700"
-                                style={getShiftOverlayStyle(shHour?.color)}
-                                title={shHour ? shHour.name : undefined}
-                              >
-                                {String(row.hour).padStart(2, "0")}:00
-                              </td>
-                            );
-                          })()}
+                          <td className="p-2 border border-slate-200 font-semibold text-slate-700">
+                            {String(row.hour).padStart(2, "0")}:00
+                          </td>
                           {series.weekHeatMap.days.map((d) => {
                             const v = Number(row[d] || 0);
-                            const base = heatBg(v, series.weekHeatMap.max);
                             const dayIdx = DAY_TO_IDX[d] ?? null;
                             const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
+                            const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                            const base = heatBg(v, series.weekHeatMap.max, baseColor);
                             return (
                               <td
                                 key={d}
