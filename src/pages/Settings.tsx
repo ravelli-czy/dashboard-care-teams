@@ -216,8 +216,8 @@ useEffect(() => {
             </div>
             <div className="mt-1 text-xs text-slate-500">{description}</div>
           </div>
-          <button className={UI.btnPrimary} onClick={() => addShift(kind)}>
-            + Agregar rango
+          <button className={UI.btnPrimary} onClick={() => addShift(kind)} aria-label={`Agregar rango ${title}`}>
+            +
           </button>
         </div>
 
