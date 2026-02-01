@@ -663,7 +663,6 @@ function buildExecutiveReportHtml(args: {
     csatByYear: Array<{ year: string; csatAvg: number | null; responses: number }>;
     topAssignees: Array<{ name: string; tickets: number }>;
     topOrgsPie: Array<{ name: string; tickets: number }>;
-    heatMap: { states: string[]; rows: any[]; range: string };
     hourHeatMap: { data: Array<{ hour: number; tickets: number }>; max: number };
     weekHeatMap: { days: string[]; matrix: any[]; max: number };
   };
@@ -1955,23 +1954,6 @@ const tppHealth = (() => {
       .map((x) => ({ year: x.year, csatAvg: x.cnt ? x.sum / x.cnt : null, responses: x.cnt }))
       .sort((a, b) => Number(a.year) - Number(b.year));
 
-    // Heatmap mes vs estado (solo últimos 6 meses)
-    const heatMap = (() => {
-      const states = Array.from(new Set(filtered.map((r) => r.estado || "(Sin estado)"))).sort();
-      const byM = new Map<string, any>();
-      for (const r of filtered) {
-        const key = r.month;
-        const obj = byM.get(key) || { month: key };
-        const s = r.estado || "(Sin estado)";
-        obj[s] = (obj[s] || 0) + 1;
-        byM.set(key, obj);
-      }
-      const allRows = Array.from(byM.values()).sort((a, b) => a.month.localeCompare(b.month));
-      const rows = allRows.slice(-6);
-      const range = rows.length ? `${rows[0].month} → ${rows[rows.length - 1].month}` : "—";
-      return { states, rows, range };
-    })();
-
     // Heatmap por hora
     const hourHeatMap = (() => {
       const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -2019,7 +2001,6 @@ const tppHealth = (() => {
       csatByYear,
       topAssignees,
       topOrgsPie,
-      heatMap,
       hourHeatMap,
       weekHeatMap,
     };
@@ -2061,14 +2042,6 @@ const tppHealth = (() => {
       }),
     };
   }, [series.ticketsByYear, filtered]);
-
-  const heatMaxMonthState = useMemo(() => {
-    let max = 0;
-    for (const r of series.heatMap.rows) {
-      for (const s of series.heatMap.states) max = Math.max(max, Number(r[s] || 0));
-    }
-    return max;
-  }, [series.heatMap]);
 
   const clearAll = () => {
     setRows([]);
@@ -2435,35 +2408,73 @@ const tppHealth = (() => {
         </div>
 
         {/* Heatmaps */}
-        <div className="mt-6 grid grid-cols-1 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card className={UI.card}>
             <CardHeader>
-              <CardTitle className={UI.title}>Heatmap Mes vs Estado (últimos 6 meses)</CardTitle>
+              <CardTitle className={UI.title}>Heatmap Horario (por hora)</CardTitle>
             </CardHeader>
             <CardContent>
+              <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
+              <div className="grid grid-cols-6 gap-2">
+                {series.hourHeatMap.data.map((x) => {
+                  const sh = pickShiftForHour(coverageShifts, x.hour);
+                  const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                  const base = heatBg(x.tickets, series.hourHeatMap.max, baseColor);
+                  const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
+                  return (
+                    <div
+                      key={x.hour}
+                      className="rounded-lg border border-slate-200 p-2 text-center"
+                      style={{ ...base }}
+                      title={titleLabel}
+                    >
+                      <div className="text-xs font-semibold rounded px-1 py-0.5 inline-block" style={getShiftOverlayStyle(sh?.color)}>{String(x.hour).padStart(2, "0")}:00</div>
+                      <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={UI.card}>
+            <CardHeader>
+              <CardTitle className={UI.title}>Heatmap Semana (día vs hora)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="text-left">
-                      <th className="p-2 border border-slate-200 bg-slate-50">Mes</th>
-                      {series.heatMap.states.map((s) => (
-                        <th key={s} className="p-2 border border-slate-200 bg-slate-50">
-                          {s}
+                      <th className="p-2 border border-slate-200 bg-slate-50">Hora</th>
+                      {series.weekHeatMap.days.map((d) => (
+                        <th key={d} className="p-2 border border-slate-200 bg-slate-50">
+                          {d}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {series.heatMap.rows.map((r: any) => (
-                      <tr key={r.month}>
+                    {series.weekHeatMap.matrix.map((row: any) => (
+                      <tr key={row.hour}>
                         <td className="p-2 border border-slate-200 font-semibold text-slate-700">
-                          {monthLabel(r.month)}
+                          {String(row.hour).padStart(2, "0")}:00
                         </td>
-                        {series.heatMap.states.map((s) => {
-                          const v = Number(r[s] || 0);
-                          const style = heatBg(v, heatMaxMonthState);
+                        {series.weekHeatMap.days.map((d) => {
+                          const v = Number(row[d] || 0);
+                          const dayIdx = DAY_TO_IDX[d] ?? null;
+                          const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
+                          const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                          const base = heatBg(v, series.weekHeatMap.max, baseColor);
+                          const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
                           return (
-                            <td key={s} className="p-2 border border-slate-200 text-center" style={style}>
+                            <td
+                              key={d}
+                              className="p-2 border border-slate-200 text-center"
+                              style={{ ...base }}
+                              title={titleLabel}
+                            >
                               {v ? formatInt(v) : ""}
                             </td>
                           );
@@ -2475,86 +2486,6 @@ const tppHealth = (() => {
               </div>
             </CardContent>
           </Card>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Card className={UI.card}>
-              <CardHeader>
-                <CardTitle className={UI.title}>Heatmap Horario (por hora)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
-                <div className="grid grid-cols-6 gap-2">
-                  {series.hourHeatMap.data.map((x) => {
-                    const sh = pickShiftForHour(coverageShifts, x.hour);
-                    const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
-                    const base = heatBg(x.tickets, series.hourHeatMap.max, baseColor);
-                    const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
-                    return (
-                      <div
-                        key={x.hour}
-                        className="rounded-lg border border-slate-200 p-2 text-center"
-                        style={{ ...base }}
-                        title={titleLabel}
-                      >
-                        <div className="text-xs font-semibold rounded px-1 py-0.5 inline-block" style={getShiftOverlayStyle(sh?.color)}>{String(x.hour).padStart(2, "0")}:00</div>
-                        <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={UI.card}>
-              <CardHeader>
-                <CardTitle className={UI.title}>Heatmap Semana (día vs hora)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="text-left">
-                        <th className="p-2 border border-slate-200 bg-slate-50">Hora</th>
-                        {series.weekHeatMap.days.map((d) => (
-                          <th key={d} className="p-2 border border-slate-200 bg-slate-50">
-                            {d}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {series.weekHeatMap.matrix.map((row: any) => (
-                        <tr key={row.hour}>
-                          <td className="p-2 border border-slate-200 font-semibold text-slate-700">
-                            {String(row.hour).padStart(2, "0")}:00
-                          </td>
-                          {series.weekHeatMap.days.map((d) => {
-                            const v = Number(row[d] || 0);
-                            const dayIdx = DAY_TO_IDX[d] ?? null;
-                            const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
-                            const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
-                            const base = heatBg(v, series.weekHeatMap.max, baseColor);
-                            const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
-                            return (
-                              <td
-                                key={d}
-                                className="p-2 border border-slate-200 text-center"
-                                style={{ ...base }}
-                                title={titleLabel}
-                              >
-                                {v ? formatInt(v) : ""}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         <div className="mt-6 text-xs text-slate-500">
