@@ -259,17 +259,25 @@ function pickShiftForDay(shifts: any[], dayIdx: number) {
 
 function ShiftsLegend({ shifts }: { shifts: CoverageShift[] }) {
   const items = (shifts || []).filter((s) => s && s.enabled !== false);
-  if (!items.length) return null;
+  const kinds = Array.from(
+    new Set(
+      items
+        .map((s) => s.kind ?? "normal")
+        .filter((kind): kind is NonNullable<CoverageShift["kind"]> => !!kind)
+    )
+  );
+  const orderedKinds = ["normal", "guardia"].filter((kind) => kinds.includes(kind as CoverageShift["kind"]));
+  if (!orderedKinds.length) return null;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
-      {items.map((s) => (
+      {orderedKinds.map((kind) => (
         <span
-          key={s.id}
+          key={kind}
           className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
-          title={s.name}
+          title={kind === "guardia" ? "Turno Guardia" : "Turno Normal"}
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color || "#94a3b8" }} />
-          {s.name}
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind as CoverageShift["kind"]] }} />
+          {kind === "guardia" ? "Turno Guardia" : "Turno Normal"}
         </span>
       ))}
     </div>
