@@ -47,6 +47,10 @@ const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "#2563eb",
   guardia: "#f97316",
 };
+const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "Turno Normal",
+  guardia: "Turno Guardia",
+};
 
 
 function uid(prefix = "shift") {
@@ -187,6 +191,10 @@ useEffect(() => {
   };
 
   const shifts = getCoverageShifts(settings);
+  const shiftLabels = {
+    ...DEFAULT_SHIFT_LABELS,
+    ...(((settings as any).shiftLabels || {}) as Partial<typeof DEFAULT_SHIFT_LABELS>),
+  };
 
   const addShift = (kind: CoverageShift["kind"]) => {
     const current = getCoverageShifts(settings);
@@ -221,15 +229,27 @@ useEffect(() => {
           </button>
         </div>
 
+        <div className="mt-3">
+          <div className={UI.label}>Nombre del tipo de turno</div>
+          <input
+            className={UI.input}
+            value={shiftLabels[kind ?? "normal"]}
+            onChange={(e) => {
+              const nextLabels = { ...shiftLabels, [kind ?? "normal"]: e.target.value };
+              setSettings({ ...(settings as any), shiftLabels: nextLabels } as any);
+            }}
+          />
+        </div>
+
         <div className="mt-4 space-y-3">
           {sectionShifts.length === 0 ? (
             <div className="text-sm text-slate-500">Aún no hay rangos configurados.</div>
           ) : (
-            sectionShifts.map((sh) => (
+            sectionShifts.map((sh, idx) => (
               <div key={sh.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="text-sm font-semibold text-slate-900">{sh.name}</div>
+                    <div className="text-sm font-semibold text-slate-900">{`Rango ${idx + 1}`}</div>
                     <label className="ml-2 flex items-center gap-2 text-xs text-slate-600">
                       <input
                         type="checkbox"
@@ -257,18 +277,6 @@ useEffect(() => {
 
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
                   <div className="md:col-span-6">
-                    <div className={UI.label}>Nombre</div>
-                    <input
-                      className={UI.input}
-                      value={sh.name}
-                      onChange={(e) => {
-                        const next = shifts.map((x) => (x.id === sh.id ? { ...x, name: e.target.value } : x));
-                        setCoverageShifts(settings, setSettings, next);
-                      }}
-                    />
-                  </div>
-
-                  <div className="md:col-span-3">
                     <div className={UI.label}>Inicio</div>
                     <input
                       className={UI.input}
@@ -281,7 +289,7 @@ useEffect(() => {
                     />
                   </div>
 
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-6">
                     <div className={UI.label}>Fin</div>
                     <input
                       className={UI.input}

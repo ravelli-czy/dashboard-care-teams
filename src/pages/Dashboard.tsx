@@ -141,6 +141,10 @@ const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "#2563eb",
   guardia: "#f97316",
 };
+const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "Turno Normal",
+  guardia: "Turno Guardia",
+};
 
 function timeToMinutes(t: string) {
   const [hh, mm] = String(t || "").split(":");
@@ -256,8 +260,18 @@ function pickShiftForDay(shifts: any[], dayIdx: number) {
   return null;
 }
 
+function getShiftLabels(settings: any) {
+  const labels = (settings as any)?.shiftLabels || {};
+  return { ...DEFAULT_SHIFT_LABELS, ...labels };
+}
 
-function ShiftsLegend({ shifts }: { shifts: CoverageShift[] }) {
+function ShiftsLegend({
+  shifts,
+  labels,
+}: {
+  shifts: CoverageShift[];
+  labels: Record<NonNullable<CoverageShift["kind"]>, string>;
+}) {
   const items = (shifts || []).filter((s) => s && s.enabled !== false);
   const kinds = Array.from(
     new Set(
@@ -274,10 +288,10 @@ function ShiftsLegend({ shifts }: { shifts: CoverageShift[] }) {
         <span
           key={kind}
           className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
-          title={kind === "guardia" ? "Turno Guardia" : "Turno Normal"}
+          title={labels[kind as CoverageShift["kind"]]}
         >
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind as CoverageShift["kind"]] }} />
-          {kind === "guardia" ? "Turno Guardia" : "Turno Normal"}
+          {labels[kind as CoverageShift["kind"]]}
         </span>
       ))}
     </div>
@@ -1430,6 +1444,7 @@ export default function JiraExecutiveDashboard() {
     }
     return { hasNormal, hasGuardia, split: hasNormal && hasGuardia };
   }, [coverageShifts]);
+  const shiftLabels = useMemo(() => getShiftLabels(settings), [settings]);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -2467,18 +2482,19 @@ const tppHealth = (() => {
                 <CardTitle className={UI.title}>Heatmap Horario (por hora)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ShiftsLegend shifts={coverageShifts} />
+                <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
                 <div className="grid grid-cols-6 gap-2">
                   {series.hourHeatMap.data.map((x) => {
                     const sh = pickShiftForHour(coverageShifts, x.hour);
                     const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
                     const base = heatBg(x.tickets, series.hourHeatMap.max, baseColor);
+                    const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
                     return (
                       <div
                         key={x.hour}
                         className="rounded-lg border border-slate-200 p-2 text-center"
                         style={{ ...base }}
-                        title={sh ? sh.name : undefined}
+                        title={titleLabel}
                       >
                         <div className="text-xs font-semibold rounded px-1 py-0.5 inline-block" style={getShiftOverlayStyle(sh?.color)}>{String(x.hour).padStart(2, "0")}:00</div>
                         <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
@@ -2494,7 +2510,7 @@ const tppHealth = (() => {
                 <CardTitle className={UI.title}>Heatmap Semana (día vs hora)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ShiftsLegend shifts={coverageShifts} />
+                <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
@@ -2519,12 +2535,13 @@ const tppHealth = (() => {
                             const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
                             const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
                             const base = heatBg(v, series.weekHeatMap.max, baseColor);
+                            const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
                             return (
                               <td
                                 key={d}
                                 className="p-2 border border-slate-200 text-center"
                                 style={{ ...base }}
-                                title={sh ? sh.name : undefined}
+                                title={titleLabel}
                               >
                                 {v ? formatInt(v) : ""}
                               </td>
