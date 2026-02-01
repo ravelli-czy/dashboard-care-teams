@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
 import {
@@ -120,6 +120,7 @@ function normalizeCoverageShifts(shifts: CoverageShift[]): CoverageShift[] {
 // --- Cobertura (turnos) para pintar bordes en heatmaps ---
 // Nota: el color solo se usa para el BORDE/outline. El azul del heatmap se mantiene.
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
+const DASHBOARD_ROWS_LS_KEY = "dashboardCare.csvRows.v1";
 
 type CoverageShift = {
   id: string;
@@ -1394,6 +1395,18 @@ type Row = {
   satisfaction: number | null;
 };
 
+type StoredRow = Omit<Row, "creada"> & { creada: string };
+
+function serializeRows(rows: Row[]): StoredRow[] {
+  return rows.map((row) => ({ ...row, creada: row.creada.toISOString() }));
+}
+
+function hydrateRows(rows: StoredRow[]): Row[] {
+  return rows
+    .map((row) => ({ ...row, creada: new Date(row.creada) }))
+    .filter((row) => !Number.isNaN(row.creada.getTime()));
+}
+
 export default function JiraExecutiveDashboard() {
   if (typeof window !== "undefined") runParserTestsOnce();
 
@@ -1426,6 +1439,27 @@ export default function JiraExecutiveDashboard() {
   const [orgFilter, setOrgFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(DASHBOARD_ROWS_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as StoredRow[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      const hydrated = hydrateRows(parsed);
+      if (!hydrated.length) return;
+      hydrated.sort((a, b) => a.creada.getTime() - b.creada.getTime());
+      setRows(hydrated);
+      const minMonth = hydrated[0].month;
+      const maxMonth = hydrated[hydrated.length - 1].month;
+      setAutoRange({ minMonth, maxMonth });
+      setFromMonth(minMonth);
+      setToMonth(maxMonth);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const onFile = (file: File) => {
     setError(null);
@@ -1511,6 +1545,13 @@ export default function JiraExecutiveDashboard() {
 
           parsed.sort((a, b) => a.creada.getTime() - b.creada.getTime());
           setRows(parsed);
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(DASHBOARD_ROWS_LS_KEY, JSON.stringify(serializeRows(parsed)));
+            } catch {
+              // ignore
+            }
+          }
 
 
 // ---- Roles/Dotación: guardar universo de "Asignado" en Settings y auto-inicializar roles faltantes ----
@@ -2015,6 +2056,13 @@ const tppHealth = (() => {
     setAssigneeFilter("all");
     setStatusFilter("all");
     setAutoRange({ minMonth: null, maxMonth: null });
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(DASHBOARD_ROWS_LS_KEY);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const isEmpty = rows.length === 0;
