@@ -2421,7 +2421,7 @@ const tppHealth = (() => {
                       style={{ ...base }}
                       title={titleLabel}
                     >
-                      <div className="text-xs font-semibold">{String(x.hour).padStart(2, "0")}:00</div>
+                      <div className="text-xs text-slate-700">{String(x.hour).padStart(2, "0")}:00</div>
                       <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
                     </div>
                   );
