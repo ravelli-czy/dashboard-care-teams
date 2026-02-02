@@ -2293,14 +2293,6 @@ const tppHealth = (() => {
             </CardContent>
           </Card>
 
-          <Card className={UI.card}>
-            <CardHeader>
-              <CardTitle className={UI.title}>Tickets por Año</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <YearBars rows={ticketsByYearBars.rows} maxTickets={ticketsByYearBars.maxTickets} />
-            </CardContent>
-          </Card>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -2330,19 +2322,27 @@ const tppHealth = (() => {
             <CardHeader>
               <CardTitle className={UI.title}>CSAT promedio por Año</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={series.csatByYear}>
-                  <CartesianGrid stroke={UI.grid} />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(v: any) => [Number(v).toFixed(2), "CSAT"]}
-                    labelFormatter={(l) => `Año ${l}`}
-                  />
-                  <Bar dataKey="csatAvg" name="CSAT" fill={UI.primary} />
-                </BarChart>
-              </ResponsiveContainer>
+            <CardContent className="space-y-4">
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={series.csatByYear}>
+                    <CartesianGrid stroke={UI.grid} />
+                    <XAxis dataKey="year" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(v: any) => [Number(v).toFixed(2), "CSAT"]}
+                      labelFormatter={(l) => `Año ${l}`}
+                    />
+                    <Bar dataKey="csatAvg" name="CSAT" fill={UI.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-700">Tickets por Año</div>
+                <div className="mt-2">
+                  <YearBars rows={ticketsByYearBars.rows} maxTickets={ticketsByYearBars.maxTickets} />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
