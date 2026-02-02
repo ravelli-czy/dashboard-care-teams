@@ -236,21 +236,6 @@ function pickShiftForDayHour(shifts: CoverageShift[], dayIdx: number, hour: numb
   return null;
 }
 
-function hexToRgba(hex: string, alpha: number) {
-  const h = hex.replace("#", "");
-  const bigint = parseInt(h, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-// Overlay suave para marcar cobertura (sin bordes), sin romper el azul del heatmap
-function getShiftOverlayStyle(color?: string): React.CSSProperties {
-  if (!color) return {};
-  return { backgroundColor: hexToRgba(color, 0.18) };
-}
-
 // Para colorear encabezados por día: primer turno que incluya ese día (orden Settings)
 function pickShiftForDay(shifts: any[], dayIdx: number) {
   for (const sh of shifts || []) {
@@ -2365,25 +2350,33 @@ const tppHealth = (() => {
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card className={UI.card}>
             <CardHeader>
-              <CardTitle className={UI.title}>Top 5 Organizaciones (torta) + Otros</CardTitle>
+              <CardTitle className={UI.title}>Top 5 Organizaciones + Otros</CardTitle>
             </CardHeader>
-            <CardContent className="h-80">
+            <CardContent className="h-96">
+              <p className="mb-2 text-xs text-slate-500">Distribución de tickets por organización.</p>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 8, right: 8, bottom: 32, left: 8 }}>
                   <Tooltip formatter={pieTooltipFormatter as any} />
                   <Pie
                     data={series.topOrgsPie}
                     dataKey="tickets"
                     nameKey="name"
-                    outerRadius={110}
-                    innerRadius={55}
+                    outerRadius={90}
+                    innerRadius={50}
                     paddingAngle={2}
                   >
                     {series.topOrgsPie.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Legend />
+                  <Legend
+                    align="center"
+                    verticalAlign="bottom"
+                    layout="horizontal"
+                    iconSize={10}
+                    wrapperStyle={{ paddingTop: 8 }}
+                    formatter={(value: any) => <span className="text-xs text-slate-600">{value}</span>}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -2428,7 +2421,7 @@ const tppHealth = (() => {
                       style={{ ...base }}
                       title={titleLabel}
                     >
-                      <div className="text-xs font-semibold rounded px-1 py-0.5 inline-block" style={getShiftOverlayStyle(sh?.color)}>{String(x.hour).padStart(2, "0")}:00</div>
+                      <div className="text-xs font-semibold">{String(x.hour).padStart(2, "0")}:00</div>
                       <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
                     </div>
                   );
