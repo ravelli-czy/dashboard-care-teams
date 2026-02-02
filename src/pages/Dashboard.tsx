@@ -1402,6 +1402,7 @@ type Row = {
 };
 
 type CsatYearStats = { year: string; avg: number | null; rated: number; total: number };
+type SlaYearStats = { year: string; respOkPct: number; respInc: number; total: number };
 
 function buildCsatYearStats(rows: Row[]): CsatYearStats[] {
   const byYear = new Map<string, { sum: number; cnt: number; total: number }>();
@@ -1420,6 +1421,25 @@ function buildCsatYearStats(rows: Row[]): CsatYearStats[] {
       year,
       avg: data.cnt ? data.sum / data.cnt : null,
       rated: data.cnt,
+      total: data.total,
+    }))
+    .sort((a, b) => Number(a.year) - Number(b.year));
+}
+
+function buildSlaYearStats(rows: Row[]): SlaYearStats[] {
+  const byYear = new Map<string, { incumplidos: number; total: number }>();
+  for (const r of rows) {
+    const year = String(r.year);
+    const cur = byYear.get(year) || { incumplidos: 0, total: 0 };
+    cur.total += 1;
+    if (r.slaResponseStatus === "Incumplido") cur.incumplidos += 1;
+    byYear.set(year, cur);
+  }
+  return Array.from(byYear.entries())
+    .map(([year, data]) => ({
+      year,
+      respOkPct: data.total ? 100 - pct(data.incumplidos, data.total) : 0,
+      respInc: data.incumplidos,
       total: data.total,
     }))
     .sort((a, b) => Number(a.year) - Number(b.year));
@@ -1659,7 +1679,10 @@ try {
 
   const kpis = useMemo(() => {
     const total = filtered.length;
-    const respInc = filtered.filter((r) => r.slaResponseStatus === "Incumplido").length;
+    const slaStats = buildSlaYearStats(filtered);
+    const slaBase = slaStats.length ? slaStats[slaStats.length - 1] : null;
+    const respInc = slaBase?.respInc ?? 0;
+    const respOkPct = slaBase?.respOkPct ?? 0;
 
     const csatStats = buildCsatYearStats(filtered);
     const csatBase = csatStats.length ? csatStats[csatStats.length - 1] : null;
@@ -1730,7 +1753,7 @@ const tppHealth = (() => {
       latestMonth,
       monthCount,
       respInc,
-      respOkPct: 100 - pct(respInc, total),
+      respOkPct,
       csatAvg,
       csatCoverage,
       tpp6m,
@@ -1839,6 +1862,17 @@ const tppHealth = (() => {
     return { baseYear: base.year, baseAvg: base.avg as number, comparisons };
   }, [filtered]);
 
+  const slaYearCompare = useMemo(() => {
+    const rows = buildSlaYearStats(filtered);
+    if (!rows.length) return null;
+    const base = rows[rows.length - 1];
+    const comparisons = rows
+      .slice(0, -1)
+      .reverse()
+      .map((row, idx) => ({ ...row, label: `P-${idx + 1}` }));
+    return { baseYear: base.year, basePct: base.respOkPct, comparisons };
+  }, [filtered]);
+
   const kpiExtras = useMemo(() => {
     const d = compareData;
     const out: Record<string, any> = {};
@@ -1879,7 +1913,29 @@ const tppHealth = (() => {
     };
 
     out.tickets = mk("total", true);
-    out.sla = mk("respOkPct", true);
+    if (!slaYearCompare) {
+      out.sla = null;
+    } else {
+      const slaLines = slaYearCompare.comparisons.map((row) => {
+        const pct = row.respOkPct ? ((slaYearCompare.basePct - row.respOkPct) / row.respOkPct) * 100 : 0;
+        const isGood = pct >= 0;
+        const arrow = pct === 0 ? "•" : pct > 0 ? "▲" : "▼";
+        return (
+          <div key={row.year} className={"text-xs " + UI.subtle}>
+            <span style={deltaStyle(isGood)} className="font-semibold">
+              {arrow} {Math.abs(pct).toFixed(1)}% ({row.respOkPct.toFixed(2)}%)
+            </span>{" "}
+            {row.label} vs {row.year}
+          </div>
+        );
+      });
+      out.sla = (
+        <div className="space-y-1">
+          <div className={"text-xs " + UI.subtle}>Base: {slaYearCompare.baseYear}</div>
+          {slaLines}
+        </div>
+      );
+    }
     out.tpp = mk("tpp", false);
 
     if (!csatYearCompare) {
@@ -1909,7 +1965,7 @@ const tppHealth = (() => {
     );
 
     return out;
-  }, [compareData, csatYearCompare]);
+  }, [compareData, csatYearCompare, slaYearCompare]);
 
   const series = useMemo(() => {
     // Tickets por mes
@@ -2359,50 +2415,6 @@ const tppHealth = (() => {
             </CardHeader>
             <CardContent>
               <YearBars rows={ticketsByYearBars.rows} maxTickets={ticketsByYearBars.maxTickets} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Card className={UI.card}>
-            <CardHeader>
-              <CardTitle className={UI.title}>SLA Respuesta por Año</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={series.slaByYear}>
-                  <CartesianGrid stroke={UI.grid} />
-                  <XAxis dataKey="year" />
-                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip
-                    formatter={(v: any, n: any) => [`${Number(v).toFixed(2)}%`, n]}
-                    labelFormatter={(l) => `Año ${l}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="CumplidoPct" name="Cumplido" stackId="a" fill={UI.primary} />
-                  <Bar dataKey="IncumplidoPct" name="Incumplido" stackId="a" fill={UI.warning} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className={UI.card}>
-            <CardHeader>
-              <CardTitle className={UI.title}>CSAT promedio por Año</CardTitle>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={series.csatByYear}>
-                  <CartesianGrid stroke={UI.grid} />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(v: any) => [Number(v).toFixed(2), "CSAT"]}
-                    labelFormatter={(l) => `Año ${l}`}
-                  />
-                  <Bar dataKey="csatAvg" name="CSAT" fill={UI.primary} />
-                </BarChart>
-              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
