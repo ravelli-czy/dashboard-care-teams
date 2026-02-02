@@ -1677,15 +1677,16 @@ try {
     });
   }, [rows, fromMonth, toMonth, orgFilter, assigneeFilter, statusFilter]);
 
+  const csatStatsByYear = useMemo(() => buildCsatYearStats(filtered), [filtered]);
+  const slaStatsByYear = useMemo(() => buildSlaYearStats(filtered), [filtered]);
+
   const kpis = useMemo(() => {
     const total = filtered.length;
-    const slaStats = buildSlaYearStats(filtered);
-    const slaBase = slaStats.length ? slaStats[slaStats.length - 1] : null;
+    const slaBase = slaStatsByYear.length ? slaStatsByYear[slaStatsByYear.length - 1] : null;
     const respInc = slaBase?.respInc ?? 0;
     const respOkPct = slaBase?.respOkPct ?? 0;
 
-    const csatStats = buildCsatYearStats(filtered);
-    const csatBase = csatStats.length ? csatStats[csatStats.length - 1] : null;
+    const csatBase = csatStatsByYear.length ? csatStatsByYear[csatStatsByYear.length - 1] : null;
     const csatAvg = csatBase?.avg ?? null;
     const csatCoverage = csatBase ? pct(csatBase.rated, csatBase.total) : 0;
 
@@ -1759,7 +1760,7 @@ const tppHealth = (() => {
       tpp6m,
       tppHealth,
     };
-  }, [filtered, settings]);
+  }, [filtered, settings, csatStatsByYear, slaStatsByYear]);
 
 
   // --- Comparativas en KPIs (según Settings) ---
@@ -1852,7 +1853,7 @@ const tppHealth = (() => {
   }, [fromMonth, toMonth, windowMonths, comparePrevious, nonDateFiltered, settings]);
 
   const csatYearCompare = useMemo(() => {
-    const rows = buildCsatYearStats(filtered).filter((row) => row.avg != null);
+    const rows = csatStatsByYear.filter((row) => row.avg != null);
     if (!rows.length) return null;
     const base = rows[rows.length - 1];
     const comparisons = rows
@@ -1860,10 +1861,10 @@ const tppHealth = (() => {
       .reverse()
       .map((row, idx) => ({ ...row, label: `P-${idx + 1}` }));
     return { baseYear: base.year, baseAvg: base.avg as number, comparisons };
-  }, [filtered]);
+  }, [csatStatsByYear]);
 
   const slaYearCompare = useMemo(() => {
-    const rows = buildSlaYearStats(filtered);
+    const rows = slaStatsByYear;
     if (!rows.length) return null;
     const base = rows[rows.length - 1];
     const comparisons = rows
@@ -1871,7 +1872,7 @@ const tppHealth = (() => {
       .reverse()
       .map((row, idx) => ({ ...row, label: `P-${idx + 1}` }));
     return { baseYear: base.year, basePct: base.respOkPct, comparisons };
-  }, [filtered]);
+  }, [slaStatsByYear]);
 
   const kpiExtras = useMemo(() => {
     const d = compareData;
