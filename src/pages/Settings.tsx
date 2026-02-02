@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSettings } from "../lib/settings";
+import { ThemeContext } from "../App";
 
 const UI = {
-  bg: "bg-slate-50",
-  card: "rounded-2xl border border-slate-200 bg-white shadow-sm",
-  title: "text-slate-900 text-base font-semibold",
-  subtitle: "text-slate-500 text-sm",
-  label: "text-xs font-semibold text-slate-600",
+  bg: "bg-slate-50 dark:bg-slate-900",
+  card: "rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm",
+  title: "text-slate-900 dark:text-white text-base font-semibold",
+  subtitle: "text-slate-500 dark:text-slate-400 text-sm",
+  label: "text-xs font-semibold text-slate-600 dark:text-slate-400",
   input:
-    "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400",
-  btn: "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50",
-  btnPrimary: "rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700",
-  chip: "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700",
+    "mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-slate-400 dark:focus:border-slate-500",
+  btn: "rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600",
+  btnPrimary: "rounded-lg bg-blue-600 dark:bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-blue-600",
+  chip: "inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-1 text-sm text-slate-700 dark:text-slate-300",
 };
 
 
@@ -125,6 +126,7 @@ function Row({ children }: { children: React.ReactNode }) {
 
 export default function SettingsPage() {
   const { settings, setSettings, reset } = useSettings();
+  const { theme, setTheme } = useContext(ThemeContext);
 
 // Hydrate coverageShifts desde localStorage (por si el schema de settings descarta campos desconocidos)
 useEffect(() => {
@@ -345,7 +347,7 @@ useEffect(() => {
       <div className="mx-auto max-w-6xl px-4 py-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-2xl font-bold text-slate-900">Settings</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">Settings</div>
             <div className={UI.subtitle}>Configura umbrales, equipo y turnos. Se aplica al Dashboard.</div>
           </div>
           <div className="flex items-center gap-2">
@@ -354,6 +356,42 @@ useEffect(() => {
             </Link>
             <button className={UI.btn} onClick={reset}>
               Restaurar por defecto
+            </button>
+          </div>
+        </div>
+
+        {/* Sección de Tema */}
+        <div className={UI.card + " mt-6 p-5"}>
+          <div className={UI.title}>Apariencia</div>
+          <div className={UI.subtitle}>Selecciona el tema de la interfaz.</div>
+          
+          <div className="mt-4 flex items-center gap-4">
+            <button
+              onClick={() => setTheme("light")}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 transition-all ${
+                theme === "light"
+                  ? "border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                  : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span className="font-semibold text-sm">Claro</span>
+            </button>
+            
+            <button
+              onClick={() => setTheme("dark")}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 transition-all ${
+                theme === "dark"
+                  ? "border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                  : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+              <span className="font-semibold text-sm">Oscuro</span>
             </button>
           </div>
         </div>
@@ -371,7 +409,7 @@ useEffect(() => {
                 value={settings.tpp.capacityMax}
                 onChange={(e) => setSettings({ ...settings, tpp: { ...settings.tpp, capacityMax: Number(e.target.value) } })}
               />
-              <div className="mt-1 text-xs text-slate-500">Color: verde</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Color: verde</div>
             </div>
 
             <div>
@@ -382,7 +420,7 @@ useEffect(() => {
                 value={settings.tpp.optimalMax}
                 onChange={(e) => setSettings({ ...settings, tpp: { ...settings.tpp, optimalMax: Number(e.target.value) } })}
               />
-              <div className="mt-1 text-xs text-slate-500">Color: azul</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Color: azul</div>
             </div>
 
             <div>
@@ -393,11 +431,11 @@ useEffect(() => {
                 value={settings.tpp.limitMax}
                 onChange={(e) => setSettings({ ...settings, tpp: { ...settings.tpp, limitMax: Number(e.target.value) } })}
               />
-              <div className="mt-1 text-xs text-slate-500">Color: amarillo</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Color: amarillo</div>
             </div>
           </div>
 
-          <div className="mt-3 text-xs text-slate-500">Warning: mayor que “Al Límite” (color rojo)</div>
+          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Warning: mayor que "Al Límite" (color rojo)</div>
         </div>
 
         <div className={UI.card + " mt-6 p-5"}>
@@ -419,12 +457,12 @@ useEffect(() => {
 
           <div className="mt-4 flex flex-wrap gap-2">
             {teamSorted.length === 0 ? (
-              <div className="text-sm text-slate-500">Sin integrantes aún.</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">Sin integrantes aún.</div>
             ) : (
               teamSorted.map((name) => (
                 <span key={name} className={UI.chip}>
                   {name}
-                  <button className="text-slate-500 hover:text-slate-900" onClick={() => removeTeam(name)} aria-label={`Quitar ${name}`}>
+                  <button className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" onClick={() => removeTeam(name)} aria-label={`Quitar ${name}`}>
                     ×
                   </button>
                 </span>
@@ -441,9 +479,9 @@ useEffect(() => {
     se considera parte de la dotación de ese mes. Aquí defines el rol de cada Asignado y qué roles cuentan para el KPI.
   </div>
 
-  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-    <div className="text-sm font-semibold text-slate-900">Roles que cuentan para dotación</div>
-    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 text-sm text-slate-700">
+  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-4">
+    <div className="text-sm font-semibold text-slate-900 dark:text-white">Roles que cuentan para dotación</div>
+    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 text-sm text-slate-700 dark:text-slate-300">
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={!!roleInclusion.Agente} onChange={(e) => setRoleInclusion("Agente", e.target.checked)} />
         Agente
@@ -461,28 +499,28 @@ useEffect(() => {
         Manager Care
       </label>
     </div>
-    <div className="mt-2 text-xs text-slate-500">
+    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
       Si marcas a alguien como <span className="font-semibold">Ignorar</span>, nunca contará para dotación (aunque aparezca como Asignado).
     </div>
   </div>
 
   <div className="mt-4">
-    <div className="text-sm font-semibold text-slate-900">Asignados detectados en el CSV</div>
-    <div className="text-xs text-slate-500">
+    <div className="text-sm font-semibold text-slate-900 dark:text-white">Asignados detectados en el CSV</div>
+    <div className="text-xs text-slate-500 dark:text-slate-400">
       Esta lista se completa automáticamente al cargar un CSV en el Dashboard.
     </div>
 
     <div className="mt-3 space-y-2">
       {rolesUniverse.length === 0 ? (
-        <div className="text-sm text-slate-500">Carga un CSV para listar Asignados y poder mapear roles.</div>
+        <div className="text-sm text-slate-500 dark:text-slate-400">Carga un CSV para listar Asignados y poder mapear roles.</div>
       ) : (
         rolesUniverse.map((name) => {
           const currentRole = (roleMap[name] || "Agente") as AssigneeRole;
           return (
             <div key={name} className="grid grid-cols-12 gap-2 items-center">
               <div className="col-span-8">
-                <div className="text-sm font-semibold text-slate-800">{name}</div>
-                <div className="text-xs text-slate-500">Asignado</div>
+                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Asignado</div>
               </div>
               <div className="col-span-4">
                 <select
@@ -521,7 +559,7 @@ useEffect(() => {
 </div>
 
 
-<div className="mt-6 text-xs text-slate-500">Los cambios se guardan automáticamente en tu navegador (localStorage).</div>
+<div className="mt-6 text-xs text-slate-500 dark:text-slate-400">Los cambios se guardan automáticamente en tu navegador (localStorage).</div>
       </div>
     </div>
   );
