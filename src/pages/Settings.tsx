@@ -44,15 +44,30 @@ const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i) => ({ idx: i, label: l }));
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
+const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "#2563eb",
+  guardia: "#f97316",
+};
+const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "Turno Normal",
+  guardia: "Turno Guardia",
+};
 
 
 function uid(prefix = "shift") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
+function normalizeCoverageShifts(shifts: CoverageShift[]): CoverageShift[] {
+  return (shifts || []).map((shift) => {
+    const kind: NonNullable<CoverageShift["kind"]> = shift.kind ?? "normal";
+    return { ...shift, kind, color: SHIFT_KIND_COLORS[kind] };
+  });
+}
+
 function getCoverageShifts(settings: any): CoverageShift[] {
   const list = (settings as any)?.coverageShifts;
-  if (Array.isArray(list) && list.length) return list as CoverageShift[];
+  if (Array.isArray(list) && list.length) return normalizeCoverageShifts(list as CoverageShift[]);
 
 
 // Fallback: persistimos coverageShifts por fuera del schema del settings (localStorage directo)
@@ -61,30 +76,46 @@ if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(COVERAGE_SHIFTS_LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed as CoverageShift[];
+      if (Array.isArray(parsed) && parsed.length) return normalizeCoverageShifts(parsed as CoverageShift[]);
     }
   } catch {}
 }
 
   const legacy = (settings as any)?.shifts;
   if (!legacy) return [];
-  const mk = (id: string, name: string, color: string, start: string, end: string, days: number[]): CoverageShift => ({
-    id, name, color, start, end, days, enabled: true,
+  const mk = (
+    id: string,
+    name: string,
+    color: string,
+    start: string,
+    end: string,
+    days: number[],
+    kind: CoverageShift["kind"] = "normal"
+  ): CoverageShift => ({
+    id,
+    name,
+    color,
+    start,
+    end,
+    days,
+    enabled: true,
+    kind,
   });
 
   const out: CoverageShift[] = [];
-  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4]));
-  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#f59e0b", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4]));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6]));
-  return out;
+  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
+  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#f59e0b", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#f97316", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  return normalizeCoverageShifts(out);
 }
 
 function setCoverageShifts(settings: any, setSettings: any, shifts: CoverageShift[]) {
   // Guardamos en settings (si el schema lo permite) y también en localStorage directo (para no perderlo)
-  setSettings({ ...(settings as any), coverageShifts: shifts } as any);
+  const normalized = normalizeCoverageShifts(shifts);
+  setSettings({ ...(settings as any), coverageShifts: normalized } as any);
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(COVERAGE_SHIFTS_LS_KEY, JSON.stringify(shifts));
+      window.localStorage.setItem(COVERAGE_SHIFTS_LS_KEY, JSON.stringify(normalized));
     } catch {}
   }
 }
@@ -159,6 +190,156 @@ useEffect(() => {
 
   const removeTeam = (name: string) => {
     setSettings({ ...settings, team: settings.team.filter((x) => x !== name) });
+  };
+
+  const shifts = getCoverageShifts(settings);
+  const shiftLabels = {
+    ...DEFAULT_SHIFT_LABELS,
+    ...(((settings as any).shiftLabels || {}) as Partial<typeof DEFAULT_SHIFT_LABELS>),
+  };
+
+  const addShift = (kind: CoverageShift["kind"]) => {
+    const current = getCoverageShifts(settings);
+    const rangesForKind = current.filter((sh) => (sh.kind ?? "normal") === kind);
+    const next: CoverageShift = {
+      id: uid(),
+      name: `Rango ${rangesForKind.length + 1}`,
+      color: SHIFT_KIND_COLORS[kind ?? "normal"],
+      days: kind === "guardia" ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4],
+      start: kind === "guardia" ? "23:00" : "09:00",
+      end: kind === "guardia" ? "06:00" : "18:00",
+      enabled: true,
+      kind,
+    };
+    setCoverageShifts(settings, setSettings, [...current, next]);
+  };
+
+  const renderShiftSection = (kind: CoverageShift["kind"], title: string, description: string) => {
+    const sectionShifts = shifts.filter((sh) => (sh.kind ?? "normal") === kind);
+    return (
+      <div className="rounded-xl border border-slate-200 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind ?? "normal"] }} />
+              {title}
+            </div>
+            <div className="mt-1 text-xs text-slate-500">{description}</div>
+          </div>
+          <button className={UI.btnPrimary} onClick={() => addShift(kind)} aria-label={`Agregar rango ${title}`}>
+            +
+          </button>
+        </div>
+
+        <div className="mt-3">
+          <div className={UI.label}>Nombre del tipo de turno</div>
+          <input
+            className={UI.input}
+            value={shiftLabels[kind ?? "normal"]}
+            onChange={(e) => {
+              const nextLabels = { ...shiftLabels, [kind ?? "normal"]: e.target.value };
+              setSettings({ ...(settings as any), shiftLabels: nextLabels } as any);
+            }}
+          />
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {sectionShifts.length === 0 ? (
+            <div className="text-sm text-slate-500">Aún no hay rangos configurados.</div>
+          ) : (
+            sectionShifts.map((sh, idx) => (
+              <div key={sh.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-semibold text-slate-900">{`Rango ${idx + 1}`}</div>
+                    <label className="ml-2 flex items-center gap-2 text-xs text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={sh.enabled !== false}
+                        onChange={(e) => {
+                          const next = shifts.map((x) => (x.id === sh.id ? { ...x, enabled: e.target.checked } : x));
+                          setCoverageShifts(settings, setSettings, next);
+                        }}
+                      />
+                      Activo
+                    </label>
+                  </div>
+
+                  <button
+                    className={UI.btn}
+                    onClick={() => {
+                      const next = shifts.filter((x) => x.id !== sh.id);
+                      setCoverageShifts(settings, setSettings, next);
+                    }}
+                    title="Eliminar rango"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
+                  <div className="md:col-span-6">
+                    <div className={UI.label}>Inicio</div>
+                    <input
+                      className={UI.input}
+                      type="time"
+                      value={sh.start}
+                      onChange={(e) => {
+                        const next = shifts.map((x) => (x.id === sh.id ? { ...x, start: e.target.value } : x));
+                        setCoverageShifts(settings, setSettings, next);
+                      }}
+                    />
+                  </div>
+
+                  <div className="md:col-span-6">
+                    <div className={UI.label}>Fin</div>
+                    <input
+                      className={UI.input}
+                      type="time"
+                      value={sh.end}
+                      onChange={(e) => {
+                        const next = shifts.map((x) => (x.id === sh.id ? { ...x, end: e.target.value } : x));
+                        setCoverageShifts(settings, setSettings, next);
+                      }}
+                    />
+                  </div>
+
+                  <div className="md:col-span-12">
+                    <div className={UI.label}>Días</div>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {DAY_OPTIONS.map((d) => {
+                        const checked = Array.isArray(sh.days) && sh.days.includes(d.idx);
+                        return (
+                          <label key={d.idx} className="flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const days = new Set(Array.isArray(sh.days) ? sh.days : []);
+                                if (e.target.checked) days.add(d.idx);
+                                else days.delete(d.idx);
+                                const next = shifts.map((x) =>
+                                  x.id === sh.id ? { ...x, days: Array.from(days).sort((a, b) => a - b) } : x
+                                );
+                                setCoverageShifts(settings, setSettings, next);
+                              }}
+                            />
+                            {d.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      Si un turno cruza medianoche (ej. 22:00–06:00), se considera <span className="font-semibold">from&gt;to</span> y cubre ambos tramos.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -364,194 +545,17 @@ useEffect(() => {
 
 
 <div className={UI.card + " mt-6 p-5"}>
-  <div className="flex items-start justify-between gap-3">
-    <div>
-      <div className={UI.title}>Horario del Team (Turnos)</div>
-      <div className={UI.subtitle}>
-        Define turnos con <span className="font-semibold">nombre</span> y <span className="font-semibold">color</span>. En el Dashboard,
-        el heatmap mantiene el azul y se pinta solo el <span className="font-semibold">borde</span> según el primer turno que cubra cada celda.
-        Si los turnos se solapan, se "unen" (se considera cubierto) y se usa el color del <span className="font-semibold">primer</span> turno (orden de la lista).
-      </div>
-    </div>
-
-    <button
-      className={UI.btnPrimary}
-      onClick={() => {
-        const current = getCoverageShifts(settings);
-        const palette = ["#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#14b8a6", "#0ea5e9"];
-        const nextColor = palette[current.length % palette.length];
-        const next: CoverageShift = {
-          id: uid(),
-          name: `Turno ${current.length + 1}`,
-          color: nextColor,
-          days: [0, 1, 2, 3, 4],
-          start: "09:00",
-          end: "18:00",
-          enabled: true,
-        };
-        setCoverageShifts(settings, setSettings, [...current, next]);
-      }}
-    >
-      + Agregar turno
-    </button>
+  <div className={UI.title}>Horario del Team (Turnos)</div>
+  <div className={UI.subtitle}>
+    Configura solo dos tipos de horario: <span className="font-semibold">Normal</span> y <span className="font-semibold">Guardia</span>. Dentro de cada uno
+    puedes agregar múltiples rangos horarios. En el Dashboard, el heatmap mantiene el azul y se pinta el degradé según el turno que cubra cada celda:
+    azul para Normal y naranja para Guardia. Si los turnos se solapan, se “unen” (se considera cubierto) y se usa el tipo del primer rango.
   </div>
 
-  {(() => {
-    const shifts = getCoverageShifts(settings);
-    return (
-      <div className="mt-4 space-y-3">
-        {shifts.length === 0 ? (
-          <div className="text-sm text-slate-500 dark:text-slate-400">Aún no hay turnos configurados.</div>
-        ) : (
-          shifts.map((sh, idx) => (
-            <div key={sh.id} className="rounded-xl border border-slate-200 dark:border-slate-600 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: sh.color }} />
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white">{sh.name}</div>
-                  <label className="ml-2 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                    <input
-                      type="checkbox"
-                      checked={sh.enabled !== false}
-                      onChange={(e) => {
-                        const next = shifts.map((x) => (x.id === sh.id ? { ...x, enabled: e.target.checked } : x));
-                        setCoverageShifts(settings, setSettings, next);
-                      }}
-                    />
-                    Activo
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    className={UI.btn}
-                    disabled={idx === 0}
-                    onClick={() => {
-                      if (idx === 0) return;
-                      const next = [...shifts];
-                      const tmp = next[idx - 1];
-                      next[idx - 1] = next[idx];
-                      next[idx] = tmp;
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                    title="Subir prioridad"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    className={UI.btn}
-                    disabled={idx === shifts.length - 1}
-                    onClick={() => {
-                      if (idx === shifts.length - 1) return;
-                      const next = [...shifts];
-                      const tmp = next[idx + 1];
-                      next[idx + 1] = next[idx];
-                      next[idx] = tmp;
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                    title="Bajar prioridad"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    className={UI.btn}
-                    onClick={() => {
-                      const next = shifts.filter((x) => x.id !== sh.id);
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                    title="Eliminar turno"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
-                <div className="md:col-span-5">
-                  <div className={UI.label}>Nombre</div>
-                  <input
-                    className={UI.input}
-                    value={sh.name}
-                    onChange={(e) => {
-                      const next = shifts.map((x) => (x.id === sh.id ? { ...x, name: e.target.value } : x));
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className={UI.label}>Color</div>
-                  <input
-                    className={UI.input}
-                    type="color"
-                    value={sh.color || "#22c55e"}
-                    onChange={(e) => {
-                      const next = shifts.map((x) => (x.id === sh.id ? { ...x, color: e.target.value } : x));
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className={UI.label}>Inicio</div>
-                  <input
-                    className={UI.input}
-                    type="time"
-                    value={sh.start}
-                    onChange={(e) => {
-                      const next = shifts.map((x) => (x.id === sh.id ? { ...x, start: e.target.value } : x));
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className={UI.label}>Fin</div>
-                  <input
-                    className={UI.input}
-                    type="time"
-                    value={sh.end}
-                    onChange={(e) => {
-                      const next = shifts.map((x) => (x.id === sh.id ? { ...x, end: e.target.value } : x));
-                      setCoverageShifts(settings, setSettings, next);
-                    }}
-                  />
-                </div>
-
-                <div className="md:col-span-12">
-                  <div className={UI.label}>Días</div>
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    {DAY_OPTIONS.map((d) => {
-                      const checked = Array.isArray(sh.days) && sh.days.includes(d.idx);
-                      return (
-                        <label key={d.idx} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => {
-                              const days = new Set(Array.isArray(sh.days) ? sh.days : []);
-                              if (e.target.checked) days.add(d.idx);
-                              else days.delete(d.idx);
-                              const next = shifts.map((x) => (x.id === sh.id ? { ...x, days: Array.from(days).sort((a, b) => a - b) } : x));
-                              setCoverageShifts(settings, setSettings, next);
-                            }}
-                          />
-                          {d.label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Si un turno cruza medianoche (ej. 22:00–06:00), se considera <span className="font-semibold">from&gt;to</span> y cubre ambos tramos.
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    );
-  })()}
+  <div className="mt-4 space-y-4">
+    {renderShiftSection("normal", "Turno Normal", "Rangos para el horario habitual del equipo.")}
+    {renderShiftSection("guardia", "Turno Guardia", "Rangos para la cobertura fuera de horario o guardias.")}
+  </div>
 </div>
 
 

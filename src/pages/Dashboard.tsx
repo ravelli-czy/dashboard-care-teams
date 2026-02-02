@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
 import {
@@ -48,7 +48,7 @@ const UI = {
   subtle: "text-xs text-slate-500",
   primary: "#2563eb", // azul principal (no-SLA y SLA cumplido)
   primaryLight: "#60a5fa",
-  warning: "#f59e0b", // naranjo (SLA incumplido)
+  warning: "#f97316", // naranjo (SLA incumplido)
   danger: "#ef4444",
   ok: "#22c55e",
   grid: "#e5e7eb",
@@ -99,9 +99,9 @@ function hexToRgb(hex: string) {
 }
 
 // Blanco -> Azul más oscuro (según repetición)
-function heatBg(count: number, max: number) {
+function heatBg(count: number, max: number, color: string = UI.primary) {
   if (!count || !max) return { backgroundColor: "#ffffff", color: "#0f172a" };
-  const rgb = hexToRgb(UI.primary) || { r: 37, g: 99, b: 235 };
+  const rgb = hexToRgb(color) || { r: 37, g: 99, b: 235 };
   const ratio = Math.max(0, Math.min(1, count / max));
   const alpha = 0.06 + ratio * 0.82;
   const bg = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
@@ -109,10 +109,18 @@ function heatBg(count: number, max: number) {
   return { backgroundColor: bg, color: text };
 }
 
+function normalizeCoverageShifts(shifts: CoverageShift[]): CoverageShift[] {
+  return (shifts || []).map((shift) => {
+    const kind: NonNullable<CoverageShift["kind"]> = shift.kind ?? "normal";
+    return { ...shift, kind, color: SHIFT_KIND_COLORS[kind] };
+  });
+}
+
 
 // --- Cobertura (turnos) para pintar bordes en heatmaps ---
 // Nota: el color solo se usa para el BORDE/outline. El azul del heatmap se mantiene.
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
+const DASHBOARD_ROWS_LS_KEY = "dashboardCare.csvRows.v1";
 
 type CoverageShift = {
   id: string;
@@ -122,11 +130,20 @@ type CoverageShift = {
   start: string; // "HH:MM"
   end: string;   // "HH:MM" (si start > end, cruza medianoche)
   enabled?: boolean;
+  kind?: "normal" | "guardia";
 };
 
 const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
+};
+const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "#2563eb",
+  guardia: "#f97316",
+};
+const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
+  normal: "Turno Normal",
+  guardia: "Turno Guardia",
 };
 
 function timeToMinutes(t: string) {
@@ -159,7 +176,7 @@ function shiftCoversDayHour(shift: CoverageShift, dayIdx: number, hour: number) 
 
 function getCoverageShifts(settings: any): CoverageShift[] {
   const list = (settings as any)?.coverageShifts;
-  if (Array.isArray(list) && list.length) return list as CoverageShift[];
+  if (Array.isArray(list) && list.length) return normalizeCoverageShifts(list as CoverageShift[]);
 
 
 // Fallback: leer coverageShifts directo desde localStorage (por si el schema de settings los descarta)
@@ -168,7 +185,7 @@ if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(COVERAGE_SHIFTS_LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed as CoverageShift[];
+      if (Array.isArray(parsed) && parsed.length) return normalizeCoverageShifts(parsed as CoverageShift[]);
     }
   } catch {}
 }
@@ -176,15 +193,30 @@ if (typeof window !== "undefined") {
   // Compatibilidad: si venías usando settings.shifts (morning/afternoon/guard)
   const legacy = (settings as any)?.shifts;
   if (!legacy) return [];
-  const mk = (id: string, name: string, color: string, start: string, end: string, days: number[]): CoverageShift => ({
-    id, name, color, start, end, days, enabled: true,
+  const mk = (
+    id: string,
+    name: string,
+    color: string,
+    start: string,
+    end: string,
+    days: number[],
+    kind: CoverageShift["kind"] = "normal"
+  ): CoverageShift => ({
+    id,
+    name,
+    color,
+    start,
+    end,
+    days,
+    enabled: true,
+    kind,
   });
 
   const out: CoverageShift[] = [];
-  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4]));
-  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#22c55e", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4]));
-  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#ef4444", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6]));
-  return out;
+  if (legacy.morning) out.push(mk("morning", "Turno Mañana", "#22c55e", legacy.morning.start, legacy.morning.end, [0,1,2,3,4], "normal"));
+  if (legacy.afternoon) out.push(mk("afternoon", "Turno Tarde", "#22c55e", legacy.afternoon.start, legacy.afternoon.end, [0,1,2,3,4], "normal"));
+  if (legacy.guard) out.push(mk("guard", "Turno Guardia", "#f97316", legacy.guard.start, legacy.guard.end, [0,1,2,3,4,5,6], "guardia"));
+  return normalizeCoverageShifts(out);
 }
 
 // Regla: si hay solape, se “une” (igual es cobertura). Visualmente se toma el color del PRIMER turno que calza.
@@ -204,27 +236,6 @@ function pickShiftForDayHour(shifts: CoverageShift[], dayIdx: number, hour: numb
   return null;
 }
 
-function outlineStyle(color?: string) {
-  if (!color) return {};
-  return { boxShadow: `inset 0 0 0 2px ${color}` } as React.CSSProperties;
-}
-
-
-function hexToRgba(hex: string, alpha: number) {
-  const h = hex.replace("#", "");
-  const bigint = parseInt(h, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-// Overlay suave para marcar cobertura (sin bordes), sin romper el azul del heatmap
-function getShiftOverlayStyle(color?: string): React.CSSProperties {
-  if (!color) return {};
-  return { backgroundColor: hexToRgba(color, 0.18) };
-}
-
 // Para colorear encabezados por día: primer turno que incluya ese día (orden Settings)
 function pickShiftForDay(shifts: any[], dayIdx: number) {
   for (const sh of shifts || []) {
@@ -234,21 +245,38 @@ function pickShiftForDay(shifts: any[], dayIdx: number) {
   return null;
 }
 
+function getShiftLabels(settings: any) {
+  const labels = (settings as any)?.shiftLabels || {};
+  return { ...DEFAULT_SHIFT_LABELS, ...labels };
+}
 
-function ShiftsLegend({ shifts }: { shifts: CoverageShift[] }) {
+function ShiftsLegend({
+  shifts,
+  labels,
+}: {
+  shifts: CoverageShift[];
+  labels: Record<NonNullable<CoverageShift["kind"]>, string>;
+}) {
   const items = (shifts || []).filter((s) => s && s.enabled !== false);
-  if (!items.length) return null;
+  const kinds = Array.from(
+    new Set(
+      items
+        .map((s) => s.kind ?? "normal")
+        .filter((kind): kind is NonNullable<CoverageShift["kind"]> => !!kind)
+    )
+  );
+  const orderedKinds = ["normal", "guardia"].filter((kind) => kinds.includes(kind as CoverageShift["kind"]));
+  if (!orderedKinds.length) return null;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
-      {items.map((s) => (
+      {orderedKinds.map((kind) => (
         <span
-          key={s.id}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700"
-          title={s.name}
-          style={outlineStyle(s.color)}
+          key={kind}
+          className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
+          title={labels[kind as CoverageShift["kind"]]}
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color || "#94a3b8" }} />
-          {s.name}
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind as CoverageShift["kind"]] }} />
+          {labels[kind as CoverageShift["kind"]]}
         </span>
       ))}
     </div>
@@ -620,7 +648,6 @@ function buildExecutiveReportHtml(args: {
     csatByYear: Array<{ year: string; csatAvg: number | null; responses: number }>;
     topAssignees: Array<{ name: string; tickets: number }>;
     topOrgsPie: Array<{ name: string; tickets: number }>;
-    heatMap: { states: string[]; rows: any[]; range: string };
     hourHeatMap: { data: Array<{ hour: number; tickets: number }>; max: number };
     weekHeatMap: { days: string[]; matrix: any[]; max: number };
   };
@@ -650,7 +677,7 @@ function buildExecutiveReportHtml(args: {
   const textMuted = "#64748b";
   const blue = UI.primary; // #2563eb
   const blue2 = UI.primaryLight; // #60a5fa
-  const warn = UI.warning; // #f59e0b
+  const warn = UI.warning; // #f97316
   const grid = "#e6edf6";
   const green = UI.ok; // #22c55e
 
@@ -1374,11 +1401,34 @@ type Row = {
   satisfaction: number | null;
 };
 
+type StoredRow = Omit<Row, "creada"> & { creada: string };
+
+function serializeRows(rows: Row[]): StoredRow[] {
+  return rows.map((row) => ({ ...row, creada: row.creada.toISOString() }));
+}
+
+function hydrateRows(rows: StoredRow[]): Row[] {
+  return rows
+    .map((row) => ({ ...row, creada: new Date(row.creada) }))
+    .filter((row) => !Number.isNaN(row.creada.getTime()));
+}
+
 export default function JiraExecutiveDashboard() {
   if (typeof window !== "undefined") runParserTestsOnce();
 
   const { settings, setSettings } = useSettings();
   const coverageShifts = useMemo(() => getCoverageShifts(settings), [settings]);
+  const coverageKinds = useMemo(() => {
+    let hasNormal = false;
+    let hasGuardia = false;
+    for (const sh of coverageShifts) {
+      if (sh.enabled === false) continue;
+      if (sh.kind === "guardia") hasGuardia = true;
+      else hasNormal = true;
+    }
+    return { hasNormal, hasGuardia, split: hasNormal && hasGuardia };
+  }, [coverageShifts]);
+  const shiftLabels = useMemo(() => getShiftLabels(settings), [settings]);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1396,6 +1446,27 @@ export default function JiraExecutiveDashboard() {
   const [orgFilter, setOrgFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(DASHBOARD_ROWS_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as StoredRow[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      const hydrated = hydrateRows(parsed);
+      if (!hydrated.length) return;
+      hydrated.sort((a, b) => a.creada.getTime() - b.creada.getTime());
+      setRows(hydrated);
+      const minMonth = hydrated[0].month;
+      const maxMonth = hydrated[hydrated.length - 1].month;
+      setAutoRange({ minMonth, maxMonth });
+      setFromMonth(minMonth);
+      setToMonth(maxMonth);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const onFile = (file: File) => {
     setError(null);
@@ -1481,6 +1552,13 @@ export default function JiraExecutiveDashboard() {
 
           parsed.sort((a, b) => a.creada.getTime() - b.creada.getTime());
           setRows(parsed);
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(DASHBOARD_ROWS_LS_KEY, JSON.stringify(serializeRows(parsed)));
+            } catch {
+              // ignore
+            }
+          }
 
 
 // ---- Roles/Dotación: guardar universo de "Asignado" en Settings y auto-inicializar roles faltantes ----
@@ -1861,23 +1939,6 @@ const tppHealth = (() => {
       .map((x) => ({ year: x.year, csatAvg: x.cnt ? x.sum / x.cnt : null, responses: x.cnt }))
       .sort((a, b) => Number(a.year) - Number(b.year));
 
-    // Heatmap mes vs estado (solo últimos 6 meses)
-    const heatMap = (() => {
-      const states = Array.from(new Set(filtered.map((r) => r.estado || "(Sin estado)"))).sort();
-      const byM = new Map<string, any>();
-      for (const r of filtered) {
-        const key = r.month;
-        const obj = byM.get(key) || { month: key };
-        const s = r.estado || "(Sin estado)";
-        obj[s] = (obj[s] || 0) + 1;
-        byM.set(key, obj);
-      }
-      const allRows = Array.from(byM.values()).sort((a, b) => a.month.localeCompare(b.month));
-      const rows = allRows.slice(-6);
-      const range = rows.length ? `${rows[0].month} → ${rows[rows.length - 1].month}` : "—";
-      return { states, rows, range };
-    })();
-
     // Heatmap por hora
     const hourHeatMap = (() => {
       const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -1925,7 +1986,6 @@ const tppHealth = (() => {
       csatByYear,
       topAssignees,
       topOrgsPie,
-      heatMap,
       hourHeatMap,
       weekHeatMap,
     };
@@ -1968,14 +2028,6 @@ const tppHealth = (() => {
     };
   }, [series.ticketsByYear, filtered]);
 
-  const heatMaxMonthState = useMemo(() => {
-    let max = 0;
-    for (const r of series.heatMap.rows) {
-      for (const s of series.heatMap.states) max = Math.max(max, Number(r[s] || 0));
-    }
-    return max;
-  }, [series.heatMap]);
-
   const clearAll = () => {
     setRows([]);
     setError(null);
@@ -1985,11 +2037,20 @@ const tppHealth = (() => {
     setAssigneeFilter("all");
     setStatusFilter("all");
     setAutoRange({ minMonth: null, maxMonth: null });
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(DASHBOARD_ROWS_LS_KEY);
+      } catch {
+        // ignore
+      }
+    }
   };
+
+  const isEmpty = rows.length === 0;
 
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
@@ -2086,6 +2147,14 @@ const tppHealth = (() => {
           </div>
         ) : null}
 
+        {isEmpty ? (
+          <div className="mt-6 flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center">
+            <p className="text-base text-slate-600">
+              Configura tu Dashboard en Simples Pasos y luego verás lo que esperas.
+            </p>
+          </div>
+        ) : (
+          <>
         {/* Filters */}
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
           <Card className={UI.card}>
@@ -2224,14 +2293,6 @@ const tppHealth = (() => {
             </CardContent>
           </Card>
 
-          <Card className={UI.card}>
-            <CardHeader>
-              <CardTitle className={UI.title}>Tickets por Año</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <YearBars rows={ticketsByYearBars.rows} maxTickets={ticketsByYearBars.maxTickets} />
-            </CardContent>
-          </Card>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -2261,19 +2322,27 @@ const tppHealth = (() => {
             <CardHeader>
               <CardTitle className={UI.title}>CSAT promedio por Año</CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={series.csatByYear}>
-                  <CartesianGrid stroke={UI.grid} />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(v: any) => [Number(v).toFixed(2), "CSAT"]}
-                    labelFormatter={(l) => `Año ${l}`}
-                  />
-                  <Bar dataKey="csatAvg" name="CSAT" fill={UI.primary} />
-                </BarChart>
-              </ResponsiveContainer>
+            <CardContent className="space-y-4">
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={series.csatByYear}>
+                    <CartesianGrid stroke={UI.grid} />
+                    <XAxis dataKey="year" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(v: any) => [Number(v).toFixed(2), "CSAT"]}
+                      labelFormatter={(l) => `Año ${l}`}
+                    />
+                    <Bar dataKey="csatAvg" name="CSAT" fill={UI.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-700">Tickets por Año</div>
+                <div className="mt-2">
+                  <YearBars rows={ticketsByYearBars.rows} maxTickets={ticketsByYearBars.maxTickets} />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -2281,25 +2350,33 @@ const tppHealth = (() => {
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card className={UI.card}>
             <CardHeader>
-              <CardTitle className={UI.title}>Top 5 Organizaciones (torta) + Otros</CardTitle>
+              <CardTitle className={UI.title}>Top 5 Organizaciones + Otros</CardTitle>
             </CardHeader>
-            <CardContent className="h-80">
+            <CardContent className="h-96">
+              <p className="mb-2 text-xs text-slate-500">Distribución de tickets por organización.</p>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 8, right: 8, bottom: 32, left: 8 }}>
                   <Tooltip formatter={pieTooltipFormatter as any} />
                   <Pie
                     data={series.topOrgsPie}
                     dataKey="tickets"
                     nameKey="name"
-                    outerRadius={110}
-                    innerRadius={55}
+                    outerRadius={90}
+                    innerRadius={50}
                     paddingAngle={2}
                   >
                     {series.topOrgsPie.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Legend />
+                  <Legend
+                    align="center"
+                    verticalAlign="bottom"
+                    layout="horizontal"
+                    iconSize={10}
+                    wrapperStyle={{ paddingTop: 8 }}
+                    formatter={(value: any) => <span className="text-xs text-slate-600">{value}</span>}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -2324,35 +2401,73 @@ const tppHealth = (() => {
         </div>
 
         {/* Heatmaps */}
-        <div className="mt-6 grid grid-cols-1 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card className={UI.card}>
             <CardHeader>
-              <CardTitle className={UI.title}>Heatmap Mes vs Estado (últimos 6 meses)</CardTitle>
+              <CardTitle className={UI.title}>Heatmap Horario (por hora)</CardTitle>
             </CardHeader>
             <CardContent>
+              <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
+              <div className="grid grid-cols-6 gap-2">
+                {series.hourHeatMap.data.map((x) => {
+                  const sh = pickShiftForHour(coverageShifts, x.hour);
+                  const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                  const base = heatBg(x.tickets, series.hourHeatMap.max, baseColor);
+                  const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
+                  return (
+                    <div
+                      key={x.hour}
+                      className="rounded-lg border border-slate-200 p-2 text-center"
+                      style={{ ...base }}
+                      title={titleLabel}
+                    >
+                      <div className="text-xs text-slate-700">{String(x.hour).padStart(2, "0")}:00</div>
+                      <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={UI.card}>
+            <CardHeader>
+              <CardTitle className={UI.title}>Heatmap Semana (día vs hora)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ShiftsLegend shifts={coverageShifts} labels={shiftLabels} />
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="text-left">
-                      <th className="p-2 border border-slate-200 bg-slate-50">Mes</th>
-                      {series.heatMap.states.map((s) => (
-                        <th key={s} className="p-2 border border-slate-200 bg-slate-50">
-                          {s}
+                      <th className="p-2 border border-slate-200 bg-slate-50">Hora</th>
+                      {series.weekHeatMap.days.map((d) => (
+                        <th key={d} className="p-2 border border-slate-200 bg-slate-50">
+                          {d}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {series.heatMap.rows.map((r: any) => (
-                      <tr key={r.month}>
+                    {series.weekHeatMap.matrix.map((row: any) => (
+                      <tr key={row.hour}>
                         <td className="p-2 border border-slate-200 font-semibold text-slate-700">
-                          {monthLabel(r.month)}
+                          {String(row.hour).padStart(2, "0")}:00
                         </td>
-                        {series.heatMap.states.map((s) => {
-                          const v = Number(r[s] || 0);
-                          const style = heatBg(v, heatMaxMonthState);
+                        {series.weekHeatMap.days.map((d) => {
+                          const v = Number(row[d] || 0);
+                          const dayIdx = DAY_TO_IDX[d] ?? null;
+                          const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
+                          const baseColor = coverageKinds.split && sh?.kind === "guardia" ? UI.warning : UI.primary;
+                          const base = heatBg(v, series.weekHeatMap.max, baseColor);
+                          const titleLabel = sh?.kind ? shiftLabels[sh.kind] : undefined;
                           return (
-                            <td key={s} className="p-2 border border-slate-200 text-center" style={style}>
+                            <td
+                              key={d}
+                              className="p-2 border border-slate-200 text-center"
+                              style={{ ...base }}
+                              title={titleLabel}
+                            >
                               {v ? formatInt(v) : ""}
                             </td>
                           );
@@ -2364,105 +2479,13 @@ const tppHealth = (() => {
               </div>
             </CardContent>
           </Card>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Card className={UI.card}>
-              <CardHeader>
-                <CardTitle className={UI.title}>Heatmap Horario (por hora)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ShiftsLegend shifts={coverageShifts} />
-                <div className="grid grid-cols-6 gap-2">
-                  {series.hourHeatMap.data.map((x) => {
-                    const sh = pickShiftForHour(coverageShifts, x.hour);
-                    const base = heatBg(x.tickets, series.hourHeatMap.max);
-                    return (
-                      <div
-                        key={x.hour}
-                        className="rounded-lg border border-slate-200 p-2 text-center"
-                        style={{ ...base }}
-                        title={sh ? sh.name : undefined}
-                      >
-                        <div className="text-xs font-semibold rounded px-1 py-0.5 inline-block" style={getShiftOverlayStyle(sh?.color)}>{String(x.hour).padStart(2, "0")}:00</div>
-                        <div className="text-sm">{x.tickets ? formatInt(x.tickets) : ""}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={UI.card}>
-              <CardHeader>
-                <CardTitle className={UI.title}>Heatmap Semana (día vs hora)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ShiftsLegend shifts={coverageShifts} />
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="text-left">
-                        <th className="p-2 border border-slate-200 bg-slate-50">Hora</th>
-                        {series.weekHeatMap.days.map((d) => {
-                          const dayIdx = DAY_TO_IDX[d] ?? null;
-                          const shDay = dayIdx === null ? null : pickShiftForDay(coverageShifts, dayIdx);
-                          return (
-                            <th
-                              key={d}
-                              className="p-2 border border-slate-200 bg-slate-50"
-                              style={getShiftOverlayStyle(shDay?.color)}
-                              title={shDay ? shDay.name : undefined}
-                            >
-                              {d}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {series.weekHeatMap.matrix.map((row: any) => (
-                        <tr key={row.hour}>
-                          {(() => {
-                            const shHour = pickShiftForHour(coverageShifts, row.hour);
-                            return (
-                              <td
-                                className="p-2 border border-slate-200 font-semibold text-slate-700"
-                                style={getShiftOverlayStyle(shHour?.color)}
-                                title={shHour ? shHour.name : undefined}
-                              >
-                                {String(row.hour).padStart(2, "0")}:00
-                              </td>
-                            );
-                          })()}
-                          {series.weekHeatMap.days.map((d) => {
-                            const v = Number(row[d] || 0);
-                            const base = heatBg(v, series.weekHeatMap.max);
-                            const dayIdx = DAY_TO_IDX[d] ?? null;
-                            const sh = dayIdx === null ? null : pickShiftForDayHour(coverageShifts, dayIdx, row.hour);
-                            return (
-                              <td
-                                key={d}
-                                className="p-2 border border-slate-200 text-center"
-                                style={{ ...base }}
-                                title={sh ? sh.name : undefined}
-                              >
-                                {v ? formatInt(v) : ""}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         <div className="mt-6 text-xs text-slate-500">
           Sugerencia: aplica enfoque Pareto 80/20 sobre Top Organizaciones/Asignados para reducir demanda recurrente.
         </div>
+          </>
+        )}
       </div>
     </div>
   );
