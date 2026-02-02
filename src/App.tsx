@@ -1,4 +1,4 @@
-import React, { createContext, useMemo, useState } from "react";
+import React, { createContext, useMemo, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import DashboardPage from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
@@ -25,6 +25,8 @@ export type CompareSettings = {
   tppBands: TppBand[];
 };
 
+export type Theme = "light" | "dark";
+
 export const CompareSettingsContext = createContext<{
   compare: CompareSettings;
   setCompare: React.Dispatch<React.SetStateAction<CompareSettings>>;
@@ -44,10 +46,20 @@ export const CompareSettingsContext = createContext<{
   setCompare: () => {},
 });
 
+export const ThemeContext = createContext<{
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+}>({
+  theme: "light",
+  setTheme: () => {},
+});
+
+const THEME_STORAGE_KEY = "dashboardCare.theme";
+
 const navLink =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+  "rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700";
 const navLinkActive =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 bg-white border border-slate-200 shadow-sm";
+  "rounded-lg px-3 py-2 text-sm font-semibold bg-white dark:bg-slate-700 border shadow-sm";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -65,45 +77,79 @@ export default function App() {
     ],
   });
 
+  // Estado del tema con persistencia en localStorage
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === "dark" || saved === "light") return saved;
+    }
+    return "light";
+  });
+
+  // Aplicar clase al documento y persistir cambios
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme]);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+  };
+
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
+  const themeCtx = useMemo(() => ({ theme, setTheme }), [theme]);
 
   return (
-    <CompareSettingsContext.Provider value={ctx}>
-      <BrowserRouter>
-        <div className="bg-slate-50 min-h-screen">
-          <div className="mx-auto max-w-7xl px-4 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-600">
-                Janis Commerce
-              </div>
-              <div className="flex items-center gap-2">
-                <NavLink
-                  to="/"
-                  end
-                  className={({ isActive }) =>
-                    isActive ? navLinkActive : navLink
-                  }
-                >
-                  Dashboard
-                </NavLink>
-                <NavLink
-                  to="/settings"
-                  className={({ isActive }) =>
-                    isActive ? navLinkActive : navLink
-                  }
-                >
-                  Settings
-                </NavLink>
+    <ThemeContext.Provider value={themeCtx}>
+      <CompareSettingsContext.Provider value={ctx}>
+        <BrowserRouter>
+          <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+            <div className="mx-auto max-w-7xl px-4 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+                  Janis Commerce
+                </div>
+                <div className="flex items-center gap-2">
+                  <NavLink
+                    to="/"
+                    end
+                    className={({ isActive }) =>
+                      isActive
+                        ? navLinkActive + " text-slate-900 dark:text-white border-slate-200 dark:border-slate-600"
+                        : navLink + " text-slate-700 dark:text-slate-300"
+                    }
+                  >
+                    Dashboard
+                  </NavLink>
+                  <NavLink
+                    to="/settings"
+                    className={({ isActive }) =>
+                      isActive
+                        ? navLinkActive + " text-slate-900 dark:text-white border-slate-200 dark:border-slate-600"
+                        : navLink + " text-slate-700 dark:text-slate-300"
+                    }
+                  >
+                    Settings
+                  </NavLink>
+                </div>
               </div>
             </div>
-          </div>
 
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </CompareSettingsContext.Provider>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </CompareSettingsContext.Provider>
+    </ThemeContext.Provider>
   );
 }
