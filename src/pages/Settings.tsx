@@ -250,136 +250,118 @@ useEffect(() => {
                 value={settings.tpp.limitMax}
                 onChange={(e) => setSettings({ ...settings, tpp: { ...settings.tpp, limitMax: Number(e.target.value) } })}
               />
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Color: naranjo</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Color: amarillo</div>
             </div>
           </div>
 
-          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Si TPP &gt; Al Límite → <span className="font-semibold">Warning</span> (rojo).
+          <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Warning: mayor que "Al Límite" (color rojo)</div>
+        </div>
+
+        <div className={UI.card + " mt-6 p-5"}>
+          <div className={UI.title}>Team</div>
+          <div className={UI.subtitle}>
+            Agrega o quita integrantes. Coincidencia por <span className="font-semibold">Nombre exacto</span>. En Top 10 Asignados:
+            Team = azul / fuera de Team = amarillo.
           </div>
-        </div>
 
-        <div className={UI.card + " mt-6 p-5"}>
-          <div className={UI.title}>Dotación Histórica</div>
-          <div className={UI.subtitle}>Ajusta la dotación según los rangos de fechas.</div>
-
-          <Row>
-            <div>
-              <div className={UI.label}>Dotación Jun-2024 a Jun-2025</div>
-              <input
-                className={UI.input}
-                type="number"
-                value={settings.staffing.beforeJul2025}
-                onChange={(e) => setSettings({ ...settings, staffing: { ...settings.staffing, beforeJul2025: Number(e.target.value) } })}
-              />
+          <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="flex-1">
+              <div className={UI.label}>Nombre exacto</div>
+              <input className={UI.input} value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ej: Joel Lechuga" />
             </div>
-            <div>
-              <div className={UI.label}>Dotación Jul-2025 en adelante</div>
-              <input
-                className={UI.input}
-                type="number"
-                value={settings.staffing.afterJul2025}
-                onChange={(e) => setSettings({ ...settings, staffing: { ...settings.staffing, afterJul2025: Number(e.target.value) } })}
-              />
-            </div>
-          </Row>
-        </div>
-
-        <div className={UI.card + " mt-6 p-5"}>
-          <div className={UI.title}>Equipo (Personas)</div>
-          <div className={UI.subtitle}>Define los miembros del equipo para métricas individuales.</div>
-
-          <div className="mt-4 flex gap-2">
-            <input
-              className={UI.input + " flex-1"}
-              placeholder="Nombre de la persona"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addTeam();
-              }}
-            />
             <button className={UI.btnPrimary} onClick={addTeam}>
               Agregar
             </button>
           </div>
 
-          {teamSorted.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {teamSorted.map((name) => (
-                <div key={name} className={UI.chip}>
-                  <span>{name}</span>
-                  <button
-                    className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                    onClick={() => removeTeam(name)}
-                  >
+          <div className="mt-4 flex flex-wrap gap-2">
+            {teamSorted.length === 0 ? (
+              <div className="text-sm text-slate-500 dark:text-slate-400">Sin integrantes aún.</div>
+            ) : (
+              teamSorted.map((name) => (
+                <span key={name} className={UI.chip}>
+                  {name}
+                  <button className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" onClick={() => removeTeam(name)} aria-label={`Quitar ${name}`}>
                     ×
                   </button>
-                </div>
-              ))}
-            </div>
-          )}
+                </span>
+              ))
+            )}
+          </div>
         </div>
 
+        
 <div className={UI.card + " mt-6 p-5"}>
-  <div className={UI.title}>Roles de Assignee</div>
+  <div className={UI.title}>Dotación (Roles por Asignado)</div>
   <div className={UI.subtitle}>
-    Asigna roles a cada persona del universo de assignees. Los roles <span className="font-semibold">Guardia</span>,{" "}
-    <span className="font-semibold">Agente</span> y <span className="font-semibold">Manager Care</span> se pueden incluir/excluir del análisis.
-    El rol <span className="font-semibold">Ignorar</span> nunca se incluye.
+    El Dashboard calcula dotación por mes usando el campo <span className="font-semibold">Asignado</span>: si una persona aparece en un ticket creado en un mes,
+    se considera parte de la dotación de ese mes. Aquí defines el rol de cada Asignado y qué roles cuentan para el KPI.
   </div>
 
-  <div className="mt-4 flex items-center gap-4 text-sm">
-    <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-      <input
-        type="checkbox"
-        checked={roleInclusion.Guardia}
-        onChange={(e) => setRoleInclusion("Guardia", e.target.checked)}
-      />
-      Incluir <span className="font-semibold">Guardia</span>
-    </label>
-    <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-      <input
-        type="checkbox"
-        checked={roleInclusion.Agente}
-        onChange={(e) => setRoleInclusion("Agente", e.target.checked)}
-      />
-      Incluir <span className="font-semibold">Agente</span>
-    </label>
-    <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-      <input
-        type="checkbox"
-        checked={roleInclusion["Manager Care"]}
-        onChange={(e) => setRoleInclusion("Manager Care", e.target.checked)}
-      />
-      Incluir <span className="font-semibold">Manager Care</span>
-    </label>
-  </div>
-
-  {rolesUniverse.length > 0 && (
-    <div className="mt-4 space-y-2">
-      {rolesUniverse.map((assignee) => {
-        const current = roleMap[assignee] || "Agente";
-        return (
-          <div key={assignee} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-3">
-            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{assignee}</div>
-            <select
-              className="rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm text-slate-700 dark:text-slate-300"
-              value={current}
-              onChange={(e) => setAssigneeRole(assignee, e.target.value as AssigneeRole)}
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        );
-      })}
+  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-4">
+    <div className="text-sm font-semibold text-slate-900 dark:text-white">Roles que cuentan para dotación</div>
+    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 text-sm text-slate-700 dark:text-slate-300">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={!!roleInclusion.Agente} onChange={(e) => setRoleInclusion("Agente", e.target.checked)} />
+        Agente
+      </label>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={!!roleInclusion.Guardia} onChange={(e) => setRoleInclusion("Guardia", e.target.checked)} />
+        Guardia
+      </label>
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={!!roleInclusion["Manager Care"]}
+          onChange={(e) => setRoleInclusion("Manager Care", e.target.checked)}
+        />
+        Manager Care
+      </label>
     </div>
-  )}
+    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+      Si marcas a alguien como <span className="font-semibold">Ignorar</span>, nunca contará para dotación (aunque aparezca como Asignado).
+    </div>
+  </div>
+
+  <div className="mt-4">
+    <div className="text-sm font-semibold text-slate-900 dark:text-white">Asignados detectados en el CSV</div>
+    <div className="text-xs text-slate-500 dark:text-slate-400">
+      Esta lista se completa automáticamente al cargar un CSV en el Dashboard.
+    </div>
+
+    <div className="mt-3 space-y-2">
+      {rolesUniverse.length === 0 ? (
+        <div className="text-sm text-slate-500 dark:text-slate-400">Carga un CSV para listar Asignados y poder mapear roles.</div>
+      ) : (
+        rolesUniverse.map((name) => {
+          const currentRole = (roleMap[name] || "Agente") as AssigneeRole;
+          return (
+            <div key={name} className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-8">
+                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Asignado</div>
+              </div>
+              <div className="col-span-4">
+                <select
+                  className={UI.input + " mt-0"}
+                  value={currentRole}
+                  onChange={(e) => setAssigneeRole(name, e.target.value as AssigneeRole)}
+                >
+                  {ROLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  </div>
 </div>
+
 
 <div className={UI.card + " mt-6 p-5"}>
   <div className="flex items-start justify-between gap-3">
