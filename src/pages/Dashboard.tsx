@@ -1401,6 +1401,30 @@ type Row = {
   satisfaction: number | null;
 };
 
+type CsatYearStats = { year: string; avg: number | null; rated: number; total: number };
+
+function buildCsatYearStats(rows: Row[]): CsatYearStats[] {
+  const byYear = new Map<string, { sum: number; cnt: number; total: number }>();
+  for (const r of rows) {
+    const year = String(r.year);
+    const cur = byYear.get(year) || { sum: 0, cnt: 0, total: 0 };
+    cur.total += 1;
+    if (r.satisfaction != null) {
+      cur.sum += Number(r.satisfaction) || 0;
+      cur.cnt += 1;
+    }
+    byYear.set(year, cur);
+  }
+  return Array.from(byYear.entries())
+    .map(([year, data]) => ({
+      year,
+      avg: data.cnt ? data.sum / data.cnt : null,
+      rated: data.cnt,
+      total: data.total,
+    }))
+    .sort((a, b) => Number(a.year) - Number(b.year));
+}
+
 type StoredRow = Omit<Row, "creada"> & { creada: string };
 
 function serializeRows(rows: Row[]): StoredRow[] {
@@ -1637,11 +1661,10 @@ try {
     const total = filtered.length;
     const respInc = filtered.filter((r) => r.slaResponseStatus === "Incumplido").length;
 
-    const rated = filtered.filter((r) => r.satisfaction != null);
-    const csatAvg =
-      rated.length > 0
-        ? rated.reduce((s, r) => s + (r.satisfaction == null ? 0 : r.satisfaction), 0) / rated.length
-        : null;
+    const csatStats = buildCsatYearStats(filtered);
+    const csatBase = csatStats.length ? csatStats[csatStats.length - 1] : null;
+    const csatAvg = csatBase?.avg ?? null;
+    const csatCoverage = csatBase ? pct(csatBase.rated, csatBase.total) : 0;
 
     const latestMonth = total > 0 ? filtered[total - 1].month : null;
     const monthCount = latestMonth ? filtered.filter((r) => r.month === latestMonth).length : 0;
@@ -1709,7 +1732,7 @@ const tppHealth = (() => {
       respInc,
       respOkPct: 100 - pct(respInc, total),
       csatAvg,
-      csatCoverage: pct(rated.length, total),
+      csatCoverage,
       tpp6m,
       tppHealth,
     };
@@ -1806,19 +1829,7 @@ const tppHealth = (() => {
   }, [fromMonth, toMonth, windowMonths, comparePrevious, nonDateFiltered, settings]);
 
   const csatYearCompare = useMemo(() => {
-    const byYear = new Map<string, { sum: number; cnt: number }>();
-    for (const r of filtered) {
-      if (r.satisfaction == null) continue;
-      const year = String(r.year);
-      const cur = byYear.get(year) || { sum: 0, cnt: 0 };
-      cur.sum += Number(r.satisfaction) || 0;
-      cur.cnt += 1;
-      byYear.set(year, cur);
-    }
-    const rows = Array.from(byYear.entries())
-      .map(([year, data]) => ({ year, avg: data.cnt ? data.sum / data.cnt : null }))
-      .filter((row) => row.avg != null)
-      .sort((a, b) => Number(a.year) - Number(b.year));
+    const rows = buildCsatYearStats(filtered).filter((row) => row.avg != null);
     if (!rows.length) return null;
     const base = rows[rows.length - 1];
     const comparisons = rows
