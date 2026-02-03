@@ -1240,8 +1240,8 @@ function kpiCard(
       <CardContent>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="min-h-[28px] flex items-end">
-              <span className="text-2xl font-semibold tracking-tight text-[#0052CC] leading-none">
+            <div className="flex items-center justify-center border-y-2 border-[#0052CC] py-2">
+              <span className="text-2xl font-bold tracking-tight text-[#0052CC] leading-none">
                 {value}
               </span>
             </div>
@@ -1479,6 +1479,7 @@ export default function JiraExecutiveDashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filters: rango por mes (YYYY-MM)
   const [fromMonth, setFromMonth] = useState<string>("all");
@@ -2191,14 +2192,37 @@ const tppHealth = (() => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm font-semibold text-[#172B4D]">
+              {fromMonth === "all" && toMonth === "all"
+                ? "Rango de fechas"
+                : `${fromMonth === "all" ? (autoRange.minMonth || "—") : fromMonth} - ${
+                    toMonth === "all" ? (autoRange.maxMonth || "—") : toMonth
+                  }`}
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#DFE1E6] bg-white text-[#42526E]"
+              onClick={() => setShowFilters((prev) => !prev)}
+              aria-label="Mostrar filtros"
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 6h16M7 12h10M10 18h4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             <label
               className="inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
               style={{ backgroundColor: "#22C55E" }}
             >
               <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M12 3v12m0 0l4-4m-4 4l-4-4M5 21h14"
+                  d="M12 21V9m0 0l4 4m-4-4l-4 4M5 3h14"
                   stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
@@ -2327,6 +2351,7 @@ const tppHealth = (() => {
         ) : (
           <>
         {/* Filters */}
+        {showFilters ? (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
           <Card className={UI.card}>
             <CardContent className="p-4">
@@ -2410,6 +2435,7 @@ const tppHealth = (() => {
             </CardContent>
           </Card>
         </div>
+        ) : null}
 
         {/* KPIs */}
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
