@@ -1240,8 +1240,10 @@ function kpiCard(
       <CardContent>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-2xl font-semibold tracking-tight text-slate-900">
-              {value}
+            <div className="min-h-[28px] flex items-end">
+              <span className="text-2xl font-semibold tracking-tight text-[#0052CC] leading-none">
+                {value}
+              </span>
             </div>
             {badge ? <div className="mt-2">{badge}</div> : null}
             {subtitle ? <div className={"mt-1 " + UI.subtle}>{subtitle}</div> : null}
@@ -2165,17 +2167,28 @@ const tppHealth = (() => {
 
   const isEmpty = rows.length === 0;
 
+  const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
+
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-[#172B4D]">
-              Support Performance
-            </h1>
-            <p className="text-xs text-[#5E6C84] mt-1">
-              Executive dashboard with SLA, CSAT and team heatmap.
-            </p>
+          <div className="flex items-start gap-3">
+            {dashboardLogo ? (
+              <img
+                src={dashboardLogo}
+                alt="Logo del Dashboard"
+                className="mt-1 h-10 w-10 rounded-md border border-[#DFE1E6] bg-white object-contain"
+              />
+            ) : null}
+            <div>
+              <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-[#172B4D]">
+                Support Performance
+              </h1>
+              <p className="mt-1 text-xs text-[#5E6C84]">
+                Executive dashboard with SLA, CSAT and team heatmap.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
