@@ -120,7 +120,7 @@ export default async function handler(req: any, res: any) {
         {
           role: "system",
           content:
-            "You are an operations analyst. Return only valid JSON with keys: summary, insights, alerts, recommended_actions, evidence, confidence (0-1). Keep summary concise and bullet lists short.",
+            "Eres un analista de operaciones. Responde SOLO JSON válido con las claves: summary, insights, alerts, recommended_actions, evidence, confidence (0-1). Resume en español, con bullets cortos y accionables.",
         },
         {
           role: "user",

@@ -2591,7 +2591,7 @@ const tppHealth = (() => {
         {/* Filters */}
         {showFilters ? (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
-          <Card className={UI.card}>
+          <Card className={`${UI.card} bg-teal-50`}>
             <CardContent className="p-4">
               <div className={UI.subtle}>Desde (mes)</div>
               <Input
@@ -2711,7 +2711,7 @@ const tppHealth = (() => {
 
         {/* AI Insights */}
         <div className="mt-6">
-          <Card className={UI.card}>
+          <Card className={`${UI.card} bg-teal-50`}>
             <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle className={UI.title}>AI Insights</CardTitle>
