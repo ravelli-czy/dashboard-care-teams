@@ -35,19 +35,19 @@ export const CompareSettingsContext = createContext<{
     compareWindowMonths: 12,
     datasetBounds: null,
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#2f6fe4" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36b37e" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#ffab00" },
+      { id: "war", label: "Warning", max: null, color: "#de350b" },
     ],
   },
   setCompare: () => {},
 });
 
 const navLink =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100";
+  "rounded-md px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100";
 const navLinkActive =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 bg-white border border-slate-200 shadow-sm";
+  "rounded-md px-3 py-2 text-sm font-semibold text-slate-900 bg-white border border-slate-200 shadow-sm";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -58,10 +58,10 @@ export default function App() {
 
     // Nombres y colores fijos (a futuro backend)
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#2f6fe4" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36b37e" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#ffab00" },
+      { id: "war", label: "Warning", max: null, color: "#de350b" },
     ],
   });
 
@@ -70,11 +70,11 @@ export default function App() {
   return (
     <CompareSettingsContext.Provider value={ctx}>
       <BrowserRouter>
-        <div className="bg-slate-50 min-h-screen">
+        <div className="bg-[#f4f5f7] min-h-screen">
           <div className="mx-auto max-w-7xl px-4 pt-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-600">
-                Janis Commerce
+              <div className="text-sm font-semibold text-slate-700">
+                Support Performance
               </div>
               <div className="flex items-center gap-2">
                 <NavLink

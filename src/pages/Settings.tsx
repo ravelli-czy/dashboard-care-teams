@@ -3,15 +3,15 @@ import { Link } from "react-router-dom";
 import { useSettings } from "../lib/settings";
 
 const UI = {
-  bg: "bg-slate-50",
-  card: "rounded-2xl border border-slate-200 bg-white shadow-sm",
+  bg: "bg-[#f4f5f7]",
+  card: "rounded-lg border border-slate-200 bg-white shadow-sm",
   title: "text-slate-900 text-base font-semibold",
   subtitle: "text-slate-500 text-sm",
   label: "text-xs font-semibold text-slate-600",
   input:
-    "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400",
-  btn: "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50",
-  btnPrimary: "rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700",
+    "mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400",
+  btn: "rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50",
+  btnPrimary: "rounded-md bg-[#2f6fe4] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2a63cc]",
   chip: "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700",
 };
 
@@ -44,8 +44,8 @@ const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i)
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2563eb",
-  guardia: "#f97316",
+  normal: "#2f6fe4",
+  guardia: "#f59e0b",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",

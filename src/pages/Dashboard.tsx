@@ -42,15 +42,15 @@ import {
 
 // --- UI (estilo similar al screenshot) ---
 const UI = {
-  pageBg: "bg-[#eef2f7]",
-  card: "bg-white border border-slate-200 rounded-xl shadow-none",
-  title: "text-sm font-semibold text-slate-700",
+  pageBg: "bg-[#f4f5f7]",
+  card: "bg-white border border-slate-200 rounded-lg shadow-sm",
+  title: "text-sm font-semibold text-slate-800",
   subtle: "text-xs text-slate-500",
-  primary: "#2563eb", // azul principal (no-SLA y SLA cumplido)
-  primaryLight: "#60a5fa",
-  warning: "#f97316", // naranjo (SLA incumplido)
-  danger: "#ef4444",
-  ok: "#22c55e",
+  primary: "#2f6fe4", // azul principal
+  primaryLight: "#7aa7f7",
+  warning: "#f59e0b", // alerta
+  danger: "#de350b",
+  ok: "#36b37e",
   grid: "#e5e7eb",
 };
 
@@ -138,8 +138,8 @@ const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
 };
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2563eb",
-  guardia: "#f97316",
+  normal: "#2f6fe4",
+  guardia: "#f59e0b",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
