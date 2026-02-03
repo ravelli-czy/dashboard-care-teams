@@ -35,10 +35,10 @@ export const CompareSettingsContext = createContext<{
     compareWindowMonths: 12,
     datasetBounds: null,
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#0C66E4" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22A06B" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#F5CD47" },
-      { id: "war", label: "Warning", max: null, color: "#CA3521" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   },
   setCompare: () => {},
@@ -47,7 +47,7 @@ export const CompareSettingsContext = createContext<{
 const navLink =
   "rounded-md px-3 py-2 text-sm font-semibold text-[#42526E] hover:bg-[#F4F5F7]";
 const navLinkActive =
-  "rounded-md px-3 py-2 text-sm font-semibold text-[#172B4D] bg-white border border-[#DFE1E6] shadow-sm";
+  "rounded-md px-3 py-2 text-sm font-semibold text-[#172B4D] bg-white border border-[#DFE1E6] shadow-none";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -58,10 +58,10 @@ export default function App() {
 
     // Nombres y colores fijos (a futuro backend)
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#0C66E4" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22A06B" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#F5CD47" },
-      { id: "war", label: "Warning", max: null, color: "#CA3521" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   });
 

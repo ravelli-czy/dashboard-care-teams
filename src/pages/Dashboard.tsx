@@ -42,15 +42,15 @@ import {
 
 // --- UI (estilo similar al summary de Jira) ---
 const UI = {
-  pageBg: "bg-[#f4f5f7]",
-  card: "bg-white border border-[#DFE1E6] rounded-md shadow-sm",
-  title: "text-sm font-semibold text-[#172B4D]",
+  pageBg: "bg-[#F4F5F7]",
+  card: "bg-white border border-[#DFE1E6] rounded-md shadow-none",
+  title: "text-xs font-semibold text-[#172B4D] tracking-wide",
   subtle: "text-xs text-[#5E6C84]",
-  primary: "#0C66E4", // azul Jira
+  primary: "#0052CC", // azul Jira
   primaryLight: "#4C9AFF",
-  warning: "#F5CD47",
-  danger: "#CA3521",
-  ok: "#22A06B",
+  warning: "#FFAB00",
+  danger: "#DE350B",
+  ok: "#36B37E",
   grid: "#DFE1E6",
 };
 
@@ -76,7 +76,7 @@ function roleIncluded(role: AssigneeRole, inclusion: RoleInclusion) {
 }
 
 const PIE_COLORS = [
-  "#0C66E4",
+  "#0052CC",
   "#4C9AFF",
   "#2684FF",
   "#579DFF",
@@ -138,8 +138,8 @@ const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
 };
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#0C66E4",
-  guardia: "#F5CD47",
+  normal: "#0052CC",
+  guardia: "#FFAB00",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
@@ -2170,10 +2170,10 @@ const tppHealth = (() => {
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-[#172B4D]">
               Support Performance
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs text-[#5E6C84] mt-1">
               Executive dashboard with SLA, CSAT and team heatmap.
             </p>
           </div>

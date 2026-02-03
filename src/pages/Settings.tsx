@@ -3,15 +3,15 @@ import { Link } from "react-router-dom";
 import { useSettings } from "../lib/settings";
 
 const UI = {
-  bg: "bg-[#f4f5f7]",
-  card: "rounded-md border border-[#DFE1E6] bg-white shadow-sm",
+  bg: "bg-[#F4F5F7]",
+  card: "rounded-md border border-[#DFE1E6] bg-white shadow-none",
   title: "text-[#172B4D] text-base font-semibold",
   subtitle: "text-[#5E6C84] text-sm",
   label: "text-xs font-semibold text-[#6B778C]",
   input:
-    "mt-1 w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] outline-none focus:border-[#B3D4FF]",
+    "mt-1 w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] outline-none focus:border-[#4C9AFF]",
   btn: "rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#42526E] hover:bg-[#F4F5F7]",
-  btnPrimary: "rounded-md bg-[#0C66E4] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0055CC]",
+  btnPrimary: "rounded-md bg-[#0052CC] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0747A6]",
   chip: "inline-flex items-center gap-2 rounded-full border border-[#DFE1E6] bg-[#F4F5F7] px-3 py-1 text-sm text-[#42526E]",
 };
 
@@ -44,8 +44,8 @@ const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i)
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#0C66E4",
-  guardia: "#F5CD47",
+  normal: "#0052CC",
+  guardia: "#FFAB00",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
