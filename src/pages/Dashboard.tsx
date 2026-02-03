@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
 import { Link } from "react-router-dom";
@@ -54,6 +54,128 @@ const UI = {
   ok: "#36B37E",
   grid: "#DFE1E6",
 };
+
+type AiInsights = {
+  summary: string;
+  insights: string[];
+  alerts: string[];
+  recommended_actions: string[];
+  evidence: string[];
+  confidence: number;
+  generatedAt: string;
+};
+
+type InsightsSnapshot = {
+  anonymized: boolean;
+  totals: {
+    tickets: number;
+    months: number;
+    dateRange: { start: string | null; end: string | null };
+  };
+  sla: {
+    responseOkPct: number;
+    responseInc: number;
+  };
+  csat: {
+    average: number | null;
+    coveragePct: number;
+  };
+  ticketsByMonth: Array<{ month: string; tickets: number }>;
+  statusBreakdown: Array<{ status: string; tickets: number }>;
+  topOrganizations: Array<{ name: string; tickets: number }>;
+  topAssignees: Array<{ name: string; tickets: number }>;
+};
+
+function hashString(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function anonymizeLabels(items: Array<{ name: string; tickets: number }>, label: string) {
+  return items.map((item, index) => ({
+    ...item,
+    name: `${label} ${index + 1}`,
+  }));
+}
+
+function buildInsightsSnapshot(rows: Row[], anonymized: boolean): InsightsSnapshot {
+  const totalTickets = rows.length;
+  const months = Array.from(new Set(rows.map((r) => r.month))).sort();
+  const createdDates = rows.map((r) => r.creada).filter((d) => d instanceof Date) as Date[];
+  const startDate = createdDates.length ? new Date(Math.min(...createdDates.map((d) => d.getTime()))) : null;
+  const endDate = createdDates.length ? new Date(Math.max(...createdDates.map((d) => d.getTime()))) : null;
+
+  let respInc = 0;
+  for (const r of rows) {
+    if (r.slaResponseStatus === "Incumplido") respInc += 1;
+  }
+  const respOkPct = totalTickets ? ((totalTickets - respInc) / totalTickets) * 100 : 0;
+
+  let csatSum = 0;
+  let csatCount = 0;
+  for (const r of rows) {
+    if (r.satisfaction == null) continue;
+    csatSum += Number(r.satisfaction) || 0;
+    csatCount += 1;
+  }
+  const csatAvg = csatCount ? csatSum / csatCount : null;
+  const csatCoverage = totalTickets ? (csatCount / totalTickets) * 100 : 0;
+
+  const countBy = (keyFn: (r: Row) => string) => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      const key = (keyFn(r) || "(Vacío)").trim();
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return Array.from(m.entries())
+      .map(([name, tickets]) => ({ name, tickets }))
+      .sort((a, b) => b.tickets - a.tickets || a.name.localeCompare(b.name));
+  };
+
+  const ticketsByMonth = countBy((r) => r.month)
+    .map((row) => ({ month: row.name, tickets: row.tickets }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  const statusBreakdown = countBy((r) => r.estado).map((row) => ({
+    status: row.name,
+    tickets: row.tickets,
+  }));
+
+  let topOrganizations = countBy((r) => r.organization).slice(0, 8);
+  let topAssignees = countBy((r) => r.asignado).slice(0, 8);
+  if (anonymized) {
+    topOrganizations = anonymizeLabels(topOrganizations, "Org");
+    topAssignees = anonymizeLabels(topAssignees, "Agente");
+  }
+
+  return {
+    anonymized,
+    totals: {
+      tickets: totalTickets,
+      months: months.length,
+      dateRange: {
+        start: startDate ? startDate.toISOString().slice(0, 10) : null,
+        end: endDate ? endDate.toISOString().slice(0, 10) : null,
+      },
+    },
+    sla: {
+      responseOkPct: respOkPct,
+      responseInc: respInc,
+    },
+    csat: {
+      average: csatAvg,
+      coveragePct: csatCoverage,
+    },
+    ticketsByMonth,
+    statusBreakdown,
+    topOrganizations,
+    topAssignees,
+  };
+}
 
 
 type AssigneeRole = "Guardia" | "Agente" | "Manager Care" | "Ignorar";
@@ -1490,6 +1612,12 @@ export default function JiraExecutiveDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [insights, setInsights] = useState<AiInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [insightsAnonymize, setInsightsAnonymize] = useState(true);
+  const insightsTimerRef = useRef<number | null>(null);
+  const insightsAbortRef = useRef<AbortController | null>(null);
 
   // Filters: rango por mes (YYYY-MM)
   const [fromMonth, setFromMonth] = useState<string>("all");
@@ -1503,6 +1631,77 @@ export default function JiraExecutiveDashboard() {
   const [orgFilter, setOrgFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const insightsSnapshot = useMemo(() => {
+    if (!rows.length) return null;
+    return buildInsightsSnapshot(rows, insightsAnonymize);
+  }, [rows, insightsAnonymize]);
+
+  const insightsDatasetHash = useMemo(() => {
+    if (!insightsSnapshot) return null;
+    return hashString(JSON.stringify(insightsSnapshot));
+  }, [insightsSnapshot]);
+
+  const requestInsights = useCallback(
+    async (force = false) => {
+      if (!insightsSnapshot || !insightsDatasetHash) return;
+      insightsAbortRef.current?.abort();
+      const controller = new AbortController();
+      insightsAbortRef.current = controller;
+      setInsightsLoading(true);
+      setInsightsError(null);
+      try {
+        const response = await fetch("/api/insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            snapshot: insightsSnapshot,
+            datasetHash: insightsDatasetHash,
+            anonymize: insightsAnonymize,
+            force,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "No se pudieron generar insights.");
+        }
+
+        const data = (await response.json()) as AiInsights;
+        setInsights(data);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setInsightsError(err?.message || "Error generando insights.");
+      } finally {
+        setInsightsLoading(false);
+      }
+    },
+    [insightsAnonymize, insightsDatasetHash, insightsSnapshot]
+  );
+
+  useEffect(() => {
+    if (!insightsSnapshot || !insightsDatasetHash) {
+      setInsights(null);
+      setInsightsError(null);
+      setInsightsLoading(false);
+      return;
+    }
+
+    if (insightsTimerRef.current) {
+      window.clearTimeout(insightsTimerRef.current);
+    }
+
+    insightsTimerRef.current = window.setTimeout(() => {
+      void requestInsights(false);
+    }, 600);
+
+    return () => {
+      if (insightsTimerRef.current) {
+        window.clearTimeout(insightsTimerRef.current);
+      }
+    };
+  }, [insightsDatasetHash, insightsSnapshot, requestInsights]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2179,6 +2378,11 @@ const tppHealth = (() => {
   const isEmpty = rows.length === 0;
 
   const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
+  const insightsGeneratedAt = insights?.generatedAt ? new Date(insights.generatedAt) : null;
+  const insightsGeneratedLabel =
+    insightsGeneratedAt && !Number.isNaN(insightsGeneratedAt.getTime())
+      ? insightsGeneratedAt.toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" })
+      : "—";
 
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
@@ -2491,6 +2695,100 @@ const tppHealth = (() => {
             <HealthBadge label={kpis.tppHealth.label} color={kpis.tppHealth.color} />,
             kpiExtras.tpp
           )}
+        </div>
+
+        {/* AI Insights */}
+        <div className="mt-6">
+          <Card className={UI.card}>
+            <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle className={UI.title}>AI Insights</CardTitle>
+                <p className="text-xs text-slate-500">Resumen automático del rendimiento del soporte.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={insightsAnonymize}
+                    onChange={(e) => setInsightsAnonymize(e.target.checked)}
+                  />
+                  Anonymize names
+                </label>
+                <Button
+                  className="h-9 px-3 text-xs"
+                  disabled={insightsLoading || !rows.length}
+                  onClick={() => void requestInsights(true)}
+                >
+                  {insightsLoading ? "Refreshing…" : "Refresh insights"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {insightsLoading ? (
+                <div className="text-sm text-slate-600">Generando insights…</div>
+              ) : null}
+              {insightsError ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                  {insightsError}
+                </div>
+              ) : null}
+              {!insightsLoading && !insightsError && insights ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
+                  {insights.insights.length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Insights</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {insights.insights.map((item, idx) => (
+                          <li key={`insight-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {insights.alerts.length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Alerts</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {insights.alerts.map((item, idx) => (
+                          <li key={`alert-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {insights.recommended_actions.length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {insights.recommended_actions.map((item, idx) => (
+                          <li key={`action-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {insights.evidence.length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Evidence</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {insights.evidence.map((item, idx) => (
+                          <li key={`evidence-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {!insightsLoading && !insightsError && !insights ? (
+                <div className="text-sm text-slate-500">
+                  Carga un CSV para generar insights automáticamente.
+                </div>
+              ) : null}
+            </CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+              <span>Last generated: {insightsGeneratedLabel}</span>
+              {insights ? <span>Confidence: {(insights.confidence * 100).toFixed(0)}%</span> : null}
+            </div>
+          </Card>
         </div>
 
         {/* Charts */}
