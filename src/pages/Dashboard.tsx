@@ -1901,19 +1901,19 @@ try {
     });
   }, [rows, fromMonth, toMonth, orgFilter, assigneeFilter, statusFilter]);
 
-  const insightsSnapshot = useMemo(() => {
+  const aiInsightsSnapshot = useMemo(() => {
     if (!filtered.length) return null;
     return buildInsightsSnapshot(filtered, insightsAnonymize);
   }, [filtered, insightsAnonymize]);
 
-  const insightsDatasetHash = useMemo(() => {
-    if (!insightsSnapshot) return null;
-    return hashString(JSON.stringify(insightsSnapshot));
-  }, [insightsSnapshot]);
+  const aiInsightsDatasetHash = useMemo(() => {
+    if (!aiInsightsSnapshot) return null;
+    return hashString(JSON.stringify(aiInsightsSnapshot));
+  }, [aiInsightsSnapshot]);
 
-  const requestInsights = useCallback(
+  const fetchInsights = useCallback(
     async (force = false) => {
-      if (!insightsSnapshot || !insightsDatasetHash) return;
+      if (!aiInsightsSnapshot || !aiInsightsDatasetHash) return;
       insightsAbortRef.current?.abort();
       const controller = new AbortController();
       insightsAbortRef.current = controller;
@@ -1924,8 +1924,8 @@ try {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            snapshot: insightsSnapshot,
-            datasetHash: insightsDatasetHash,
+            snapshot: aiInsightsSnapshot,
+            datasetHash: aiInsightsDatasetHash,
             anonymize: insightsAnonymize,
             force,
           }),
@@ -1954,11 +1954,11 @@ try {
         setInsightsLoading(false);
       }
     },
-    [insightsAnonymize, insightsDatasetHash, insightsSnapshot]
+    [aiInsightsDatasetHash, aiInsightsSnapshot, insightsAnonymize]
   );
 
   useEffect(() => {
-    if (!insightsSnapshot || !insightsDatasetHash) {
+    if (!aiInsightsSnapshot || !aiInsightsDatasetHash) {
       setInsights(null);
       setInsightsError(null);
       setInsightsLoading(false);
@@ -1973,7 +1973,7 @@ try {
     }
 
     insightsTimerRef.current = window.setTimeout(() => {
-      void requestInsights(false);
+      void fetchInsights(false);
     }, 600);
 
     return () => {
@@ -1981,7 +1981,7 @@ try {
         window.clearTimeout(insightsTimerRef.current);
       }
     };
-  }, [insightsDatasetHash, insightsSnapshot, insightsExpanded, requestInsights]);
+  }, [aiInsightsDatasetHash, aiInsightsSnapshot, insightsExpanded, fetchInsights]);
 
   const csatStatsByYear = useMemo(() => buildCsatYearStats(filtered), [filtered]);
   const slaStatsByYear = useMemo(() => buildSlaYearStats(filtered), [filtered]);
@@ -2814,7 +2814,7 @@ const tppHealth = (() => {
                   disabled={insightsLoading || !rows.length}
                   onClick={() => {
                     setInsightsExpanded(true);
-                    void requestInsights(true);
+                    void fetchInsights(true);
                   }}
                 >
                   {insightsLoading ? "Generando…" : "Generar Insights"}
