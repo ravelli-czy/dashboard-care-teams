@@ -1,7 +1,8 @@
 import React, { createContext, useMemo, useState } from "react";
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardPage from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
+import { ThemeContext, ThemeMode } from "./lib/theme";
 
 export type DatasetBounds = { min: Date; max: Date } | null;
 
@@ -35,19 +36,14 @@ export const CompareSettingsContext = createContext<{
     compareWindowMonths: 12,
     datasetBounds: null,
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   },
   setCompare: () => {},
 });
-
-const navLink =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100";
-const navLinkActive =
-  "rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 bg-white border border-slate-200 shadow-sm";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -58,52 +54,28 @@ export default function App() {
 
     // Nombres y colores fijos (a futuro backend)
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   });
+  const [theme, setTheme] = useState<ThemeMode>("light");
 
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
 
   return (
-    <CompareSettingsContext.Provider value={ctx}>
-      <BrowserRouter>
-        <div className="bg-slate-50 min-h-screen">
-          <div className="mx-auto max-w-7xl px-4 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-600">
-                Janis Commerce
-              </div>
-              <div className="flex items-center gap-2">
-                <NavLink
-                  to="/"
-                  end
-                  className={({ isActive }) =>
-                    isActive ? navLinkActive : navLink
-                  }
-                >
-                  Dashboard
-                </NavLink>
-                <NavLink
-                  to="/settings"
-                  className={({ isActive }) =>
-                    isActive ? navLinkActive : navLink
-                  }
-                >
-                  Settings
-                </NavLink>
-              </div>
-            </div>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <CompareSettingsContext.Provider value={ctx}>
+        <BrowserRouter>
+          <div className="bg-white min-h-screen">
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
           </div>
-
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </CompareSettingsContext.Provider>
+        </BrowserRouter>
+      </CompareSettingsContext.Provider>
+    </ThemeContext.Provider>
   );
 }
