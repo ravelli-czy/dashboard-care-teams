@@ -116,7 +116,6 @@ export default async function handler(req: any, res: any) {
     },
     body: JSON.stringify({
       model: "gpt-4.1-mini",
-      text_format: { type: "json_object" },
       input: [
         {
           role: "system",
