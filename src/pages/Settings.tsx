@@ -1,19 +1,20 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ThemeContext } from "../lib/theme";
 import { useSettings } from "../lib/settings";
 import { ThemeContext } from "../App";
 
 const UI = {
-  bg: "bg-slate-50 dark:bg-slate-900",
-  card: "rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm",
-  title: "text-slate-900 dark:text-white text-base font-semibold",
-  subtitle: "text-slate-500 dark:text-slate-400 text-sm",
-  label: "text-xs font-semibold text-slate-600 dark:text-slate-400",
+  bg: "bg-white",
+  card: "rounded-md border border-[#DFE1E6] bg-white shadow-none",
+  title: "text-[#172B4D] text-base font-semibold",
+  subtitle: "text-[#5E6C84] text-sm",
+  label: "text-xs font-semibold text-[#6B778C]",
   input:
-    "mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-slate-400 dark:focus:border-slate-500",
-  btn: "rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600",
-  btnPrimary: "rounded-lg bg-blue-600 dark:bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-blue-600",
-  chip: "inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-1 text-sm text-slate-700 dark:text-slate-300",
+    "mt-1 w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] outline-none focus:border-[#4C9AFF]",
+  btn: "rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#42526E] hover:bg-[#F4F5F7]",
+  btnPrimary: "rounded-md bg-[#0052CC] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0747A6]",
+  chip: "inline-flex items-center gap-2 rounded-full border border-[#DFE1E6] bg-[#F4F5F7] px-3 py-1 text-sm text-[#42526E]",
 };
 
 
@@ -45,8 +46,8 @@ const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i)
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2563eb",
-  guardia: "#f97316",
+  normal: "#0052CC",
+  guardia: "#FFAB00",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
@@ -125,6 +126,7 @@ function Row({ children }: { children: React.ReactNode }) {
 }
 
 export default function SettingsPage() {
+  const { theme } = useContext(ThemeContext);
   const { settings, setSettings, reset } = useSettings();
   const { theme, setTheme } = useContext(ThemeContext);
 
@@ -144,6 +146,8 @@ useEffect(() => {
 }, []);
 
   const [teamName, setTeamName] = useState("");
+
+  const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
 
   const teamSorted = useMemo(() => [...settings.team].sort((a, b) => a.localeCompare(b)), [settings.team]);
 
@@ -221,7 +225,9 @@ useEffect(() => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind ?? "normal"] }} />
+              <span
+                className={`shift-dot ${kind === "guardia" ? "shift-dot--guardia" : "shift-dot--normal"}`}
+              />
               {title}
             </div>
             <div className="mt-1 text-xs text-slate-500">{description}</div>
@@ -343,7 +349,7 @@ useEffect(() => {
   };
 
   return (
-    <div className={UI.bg + " min-h-screen"}>
+    <div className={UI.bg + " min-h-screen"} data-theme={theme}>
       <div className="mx-auto max-w-6xl px-4 py-6">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -393,6 +399,51 @@ useEffect(() => {
               </svg>
               <span className="font-semibold text-sm">Oscuro</span>
             </button>
+          </div>
+        </div>
+
+        <div className={UI.card + " mt-6 p-5"}>
+          <div className={UI.title}>Dashboard</div>
+          <div className={UI.subtitle}>Personaliza el logo que aparece junto al nombre del Dashboard.</div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            {dashboardLogo ? (
+              <img src={dashboardLogo} alt="Logo del Dashboard" className="h-10 w-10 rounded-md object-contain border border-slate-200 bg-white" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
+                Logo
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className={UI.btnPrimary + " cursor-pointer"}>
+                Subir logo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const result = typeof reader.result === "string" ? reader.result : "";
+                      if (!result) return;
+                      setSettings({ ...(settings as any), dashboardLogo: result } as any);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+              {dashboardLogo ? (
+                <button
+                  className={UI.btn}
+                  onClick={() => setSettings({ ...(settings as any), dashboardLogo: "" } as any)}
+                >
+                  Quitar logo
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 
