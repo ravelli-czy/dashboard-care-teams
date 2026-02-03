@@ -42,7 +42,7 @@ import {
 
 // --- UI (estilo similar al summary de Jira) ---
 const UI = {
-  pageBg: "bg-[#F4F5F7]",
+  pageBg: "bg-white",
   card: "bg-white border border-[#DFE1E6] rounded-md shadow-none",
   title: "text-xs font-semibold text-[#172B4D] tracking-wide",
   subtle: "text-xs text-[#5E6C84]",
@@ -76,11 +76,11 @@ function roleIncluded(role: AssigneeRole, inclusion: RoleInclusion) {
 }
 
 const PIE_COLORS = [
-  "#0052CC",
-  "#4C9AFF",
-  "#2684FF",
-  "#579DFF",
-  "#1D7AFC",
+  "#2684FF", // azul
+  "#36B37E", // verde
+  "#6554C0", // morado
+  "#8777D9",
+  "#B8ACF6",
   "#7A869A", // Otros
 ];
 

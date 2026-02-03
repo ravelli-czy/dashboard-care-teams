@@ -2,6 +2,7 @@ import React, { createContext, useMemo, useState } from "react";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import DashboardPage from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
+import { useSettings } from "./lib/settings";
 
 export type DatasetBounds = { min: Date; max: Date } | null;
 
@@ -66,15 +67,24 @@ export default function App() {
   });
 
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
+  const { settings } = useSettings();
+  const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
 
   return (
     <CompareSettingsContext.Provider value={ctx}>
       <BrowserRouter>
-        <div className="bg-[#F4F5F7] min-h-screen">
+        <div className="bg-white min-h-screen">
           <div className="mx-auto max-w-7xl px-4 pt-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-[#172B4D]">
-                Support Performance
+              <div className="flex items-center gap-3 text-sm font-semibold text-[#172B4D]">
+                {dashboardLogo ? (
+                  <img
+                    src={dashboardLogo}
+                    alt="Logo del Dashboard"
+                    className="h-8 w-8 rounded-md border border-[#DFE1E6] bg-white object-contain"
+                  />
+                ) : null}
+                <span>Support Performance</span>
               </div>
               <div className="flex items-center gap-2">
                 <NavLink

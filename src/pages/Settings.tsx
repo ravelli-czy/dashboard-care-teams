@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useSettings } from "../lib/settings";
 
 const UI = {
-  bg: "bg-[#F4F5F7]",
+  bg: "bg-white",
   card: "rounded-md border border-[#DFE1E6] bg-white shadow-none",
   title: "text-[#172B4D] text-base font-semibold",
   subtitle: "text-[#5E6C84] text-sm",
@@ -142,6 +142,8 @@ useEffect(() => {
 }, []);
 
   const [teamName, setTeamName] = useState("");
+
+  const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
 
   const teamSorted = useMemo(() => [...settings.team].sort((a, b) => a.localeCompare(b)), [settings.team]);
 
@@ -355,6 +357,51 @@ useEffect(() => {
             <button className={UI.btn} onClick={reset}>
               Restaurar por defecto
             </button>
+          </div>
+        </div>
+
+        <div className={UI.card + " mt-6 p-5"}>
+          <div className={UI.title}>Dashboard</div>
+          <div className={UI.subtitle}>Personaliza el logo que aparece junto al nombre del Dashboard.</div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            {dashboardLogo ? (
+              <img src={dashboardLogo} alt="Logo del Dashboard" className="h-10 w-10 rounded-md object-contain border border-slate-200 bg-white" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
+                Logo
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className={UI.btnPrimary + " cursor-pointer"}>
+                Subir logo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const result = typeof reader.result === "string" ? reader.result : "";
+                      if (!result) return;
+                      setSettings({ ...(settings as any), dashboardLogo: result } as any);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+              {dashboardLogo ? (
+                <button
+                  className={UI.btn}
+                  onClick={() => setSettings({ ...(settings as any), dashboardLogo: "" } as any)}
+                >
+                  Quitar logo
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 

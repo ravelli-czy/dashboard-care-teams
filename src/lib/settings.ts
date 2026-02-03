@@ -10,6 +10,7 @@ export type AppSettings = {
     afternoon: TeamShift;
     guard: TeamShift;
   };
+  dashboardLogo?: string;
 };
 
 const STORAGE_KEY = "janis-care-dashboard-settings:v1";
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     afternoon: { start: "16:00", end: "00:00" },
     guard: { start: "00:00", end: "08:00" },
   },
+  dashboardLogo: "",
 };
 
 function safeParseSettings(raw: string | null): AppSettings | null {
@@ -56,6 +58,7 @@ function safeParseSettings(raw: string | null): AppSettings | null {
           end: typeof shifts?.guard?.end === "string" ? shifts.guard.end : DEFAULT_SETTINGS.shifts.guard.end,
         },
       },
+      dashboardLogo: typeof obj.dashboardLogo === "string" ? obj.dashboardLogo : DEFAULT_SETTINGS.dashboardLogo,
     };
 
     if (merged.tpp.capacityMax > merged.tpp.optimalMax) merged.tpp.optimalMax = merged.tpp.capacityMax;
