@@ -1,10 +1,5 @@
 type InsightResponse = {
   summary: string;
-  insights: string[];
-  alerts: string[];
-  recommended_actions: string[];
-  evidence: string[];
-  confidence: number;
   generatedAt: string;
 };
 
@@ -35,17 +30,6 @@ function getRateLimitEntry(ip: string) {
     return entry;
   }
   return existing;
-}
-
-function normalizeList(input: any): string[] {
-  if (!Array.isArray(input)) return [];
-  return input.map((item) => String(item)).filter(Boolean);
-}
-
-function clampConfidence(value: any) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return 0.5;
-  return Math.min(1, Math.max(0, num));
 }
 
 async function readBody(req: any) {
@@ -119,67 +103,57 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const prompt = {
-    role: "user",
-    content:
-      "Genera insights ejecutivos en español a partir del snapshot agregado. " +
-      "Devuelve JSON con summary, insights, alerts, recommended_actions, evidence, confidence. " +
-      "No incluyas datos personales ni nombres propios. Snapshot: " +
-      JSON.stringify(snapshot),
-  };
-
-  const system = {
-    role: "system",
-    content:
-      "Eres un analista de soporte. Responde solo JSON válido con el esquema solicitado. " +
-      "Usa frases breves y accionables.",
-  };
-
-  const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [system, prompt],
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You are an operations analyst. Return a concise executive summary and actionable insights.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify(snapshot),
+        },
+      ],
     }),
   });
 
-  if (!openaiResponse.ok) {
-    res.status(502).json({ error: "OpenAI request failed" });
-    return;
+  const text = await response.text();
+
+  if (!response.ok) {
+    console.error("OPENAI ERROR", response.status, text);
+    return res.status(502).json({
+      error: "OpenAI request failed",
+      openaiStatus: response.status,
+      openaiBody: text.slice(0, 500),
+    });
   }
 
-  const data = await openaiResponse.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content || typeof content !== "string") {
-    res.status(502).json({ error: "Invalid OpenAI response" });
-    return;
-  }
-
-  let parsed: any;
+  let data;
   try {
-    parsed = JSON.parse(content);
-  } catch {
-    res.status(502).json({ error: "OpenAI response was not JSON" });
-    return;
+    data = JSON.parse(text);
+  } catch (err) {
+    console.error("Invalid JSON from OpenAI", text);
+    return res.status(502).json({
+      error: "Invalid OpenAI response format",
+    });
   }
 
-  const response: InsightResponse = {
-    summary: String(parsed?.summary || ""),
-    insights: normalizeList(parsed?.insights),
-    alerts: normalizeList(parsed?.alerts),
-    recommended_actions: normalizeList(parsed?.recommended_actions),
-    evidence: normalizeList(parsed?.evidence),
-    confidence: clampConfidence(parsed?.confidence),
+  const outputText = data.output_text ?? data.output?.[0]?.content?.[0]?.text ?? "";
+
+  const responsePayload: InsightResponse = {
+    summary: String(outputText || ""),
     generatedAt: new Date().toISOString(),
   };
 
-  cache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value: response });
+  cache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value: responsePayload });
 
-  res.status(200).json(response);
+  return res.status(200).json(responsePayload);
 }
