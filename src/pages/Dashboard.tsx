@@ -1634,9 +1634,9 @@ export default function JiraExecutiveDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const insightsSnapshot = useMemo(() => {
-    if (!rows.length) return null;
-    return buildInsightsSnapshot(rows, insightsAnonymize);
-  }, [rows, insightsAnonymize]);
+    if (!filtered.length) return null;
+    return buildInsightsSnapshot(filtered, insightsAnonymize);
+  }, [filtered, insightsAnonymize]);
 
   const insightsDatasetHash = useMemo(() => {
     if (!insightsSnapshot) return null;
