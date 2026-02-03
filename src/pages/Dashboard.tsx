@@ -2175,16 +2175,16 @@ const tppHealth = (() => {
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3">
             {dashboardLogo ? (
               <img
                 src={dashboardLogo}
                 alt="Logo del Dashboard"
-                className="mt-1 h-10 w-10 rounded-md border border-[#DFE1E6] bg-white object-contain"
+                className="h-12 w-12 rounded-md border border-[#DFE1E6] bg-white object-contain"
               />
             ) : null}
             <div>
-              <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-[#172B4D]">
+              <h1 className="text-[2rem] font-semibold tracking-tight text-[#172B4D]">
                 Support Performance
               </h1>
               <p className="mt-1 text-xs text-[#5E6C84]">
