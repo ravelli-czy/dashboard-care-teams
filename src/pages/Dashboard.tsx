@@ -1616,6 +1616,7 @@ export default function JiraExecutiveDashboard() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [insightsAnonymize, setInsightsAnonymize] = useState(true);
+  const [insightsExpanded, setInsightsExpanded] = useState(false);
   const insightsTimerRef = useRef<number | null>(null);
   const insightsAbortRef = useRef<AbortController | null>(null);
 
@@ -1685,8 +1686,11 @@ export default function JiraExecutiveDashboard() {
       setInsights(null);
       setInsightsError(null);
       setInsightsLoading(false);
+      setInsightsExpanded(false);
       return;
     }
+
+    if (!insightsExpanded) return;
 
     if (insightsTimerRef.current) {
       window.clearTimeout(insightsTimerRef.current);
@@ -1701,7 +1705,7 @@ export default function JiraExecutiveDashboard() {
         window.clearTimeout(insightsTimerRef.current);
       }
     };
-  }, [insightsDatasetHash, insightsSnapshot, requestInsights]);
+  }, [insightsDatasetHash, insightsSnapshot, insightsExpanded, requestInsights]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2706,7 +2710,7 @@ const tppHealth = (() => {
                 <p className="text-xs text-slate-500">Resumen automático del rendimiento del soporte.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs text-slate-600">
+                <label className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -2718,6 +2722,89 @@ const tppHealth = (() => {
                 <Button
                   className="h-9 px-3 text-xs"
                   disabled={insightsLoading || !rows.length}
+
+                  onClick={() => {
+                    setInsightsExpanded(true);
+                    void requestInsights(true);
+                  }}
+                >
+                  {insightsLoading ? "Generando…" : "Generar Insights"}
+                </Button>
+              </div>
+            </CardHeader>
+            {insightsExpanded ? (
+              <>
+                <CardContent className="space-y-3">
+                  {insightsLoading ? (
+                    <div className="text-sm text-slate-600">Generando insights…</div>
+                  ) : null}
+                  {insightsError ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                      {insightsError}
+                    </div>
+                  ) : null}
+                  {!insightsLoading && !insightsError && insights ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
+                      {insights.insights.length ? (
+                        <div>
+                          <div className="text-xs font-semibold text-slate-600">Insights</div>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                            {insights.insights.map((item, idx) => (
+                              <li key={`insight-${idx}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {insights.alerts.length ? (
+                        <div>
+                          <div className="text-xs font-semibold text-slate-600">Alerts</div>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                            {insights.alerts.map((item, idx) => (
+                              <li key={`alert-${idx}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {insights.recommended_actions.length ? (
+                        <div>
+                          <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                            {insights.recommended_actions.map((item, idx) => (
+                              <li key={`action-${idx}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {insights.evidence.length ? (
+                        <div>
+                          <div className="text-xs font-semibold text-slate-600">Evidence</div>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                            {insights.evidence.map((item, idx) => (
+                              <li key={`evidence-${idx}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {!insightsLoading && !insightsError && !insights ? (
+                    <div className="text-sm text-slate-500">
+                      Carga un CSV para generar insights cuando presiones el botón.
+                    </div>
+                  ) : null}
+                </CardContent>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+                  <span>Last generated: {insightsGeneratedLabel}</span>
+                  {insights ? <span>Confidence: {(insights.confidence * 100).toFixed(0)}%</span> : null}
+                </div>
+              </>
+            ) : (
+              <div className="px-4 pb-4 text-xs text-slate-500">
+                Presiona “Generar Insights” para desplegar el análisis.
+              </div>
+            )}
+
                   onClick={() => void requestInsights(true)}
                 >
                   {insightsLoading ? "Refreshing…" : "Refresh insights"}
