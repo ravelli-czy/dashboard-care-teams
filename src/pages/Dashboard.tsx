@@ -57,11 +57,11 @@ const UI = {
 
 type AiInsights = {
   summary: string;
-  insights: string[];
-  alerts: string[];
-  recommended_actions: string[];
-  evidence: string[];
-  confidence: number;
+  insights?: string[];
+  alerts?: string[];
+  recommended_actions?: string[];
+  evidence?: string[];
+  confidence?: number;
   generatedAt: string;
 };
 
@@ -1670,7 +1670,15 @@ export default function JiraExecutiveDashboard() {
         }
 
         const data = (await response.json()) as AiInsights;
-        setInsights(data);
+        setInsights({
+          summary: data.summary || "",
+          generatedAt: data.generatedAt,
+          insights: data.insights || [],
+          alerts: data.alerts || [],
+          recommended_actions: data.recommended_actions || [],
+          evidence: data.evidence || [],
+          confidence: typeof data.confidence === "number" ? data.confidence : 0.5,
+        });
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         setInsightsError(err?.message || "Error generando insights.");
@@ -2722,7 +2730,6 @@ const tppHealth = (() => {
                 <Button
                   className="h-9 px-3 text-xs"
                   disabled={insightsLoading || !rows.length}
-
                   onClick={() => {
                     setInsightsExpanded(true);
                     void requestInsights(true);
@@ -2746,46 +2753,46 @@ const tppHealth = (() => {
                   {!insightsLoading && !insightsError && insights ? (
                     <div className="space-y-3">
                       <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
-                      {insights.insights.length ? (
-                        <div>
-                          <div className="text-xs font-semibold text-slate-600">Insights</div>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                            {insights.insights.map((item, idx) => (
-                              <li key={`insight-${idx}`}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {insights.alerts.length ? (
-                        <div>
-                          <div className="text-xs font-semibold text-slate-600">Alerts</div>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                            {insights.alerts.map((item, idx) => (
-                              <li key={`alert-${idx}`}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {insights.recommended_actions.length ? (
-                        <div>
-                          <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                            {insights.recommended_actions.map((item, idx) => (
-                              <li key={`action-${idx}`}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {insights.evidence.length ? (
-                        <div>
-                          <div className="text-xs font-semibold text-slate-600">Evidence</div>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                            {insights.evidence.map((item, idx) => (
-                              <li key={`evidence-${idx}`}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
+                  {(insights.insights || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Insights</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.insights || []).map((item, idx) => (
+                          <li key={`insight-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.alerts || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Alerts</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.alerts || []).map((item, idx) => (
+                          <li key={`alert-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.recommended_actions || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.recommended_actions || []).map((item, idx) => (
+                          <li key={`action-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.evidence || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Evidence</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.evidence || []).map((item, idx) => (
+                          <li key={`evidence-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                     </div>
                   ) : null}
                   {!insightsLoading && !insightsError && !insights ? (
@@ -2796,7 +2803,9 @@ const tppHealth = (() => {
                 </CardContent>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
                   <span>Last generated: {insightsGeneratedLabel}</span>
-                  {insights ? <span>Confidence: {(insights.confidence * 100).toFixed(0)}%</span> : null}
+                  {insights ? (
+                    <span>Confidence: {((insights.confidence ?? 0.5) * 100).toFixed(0)}%</span>
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -2804,77 +2813,6 @@ const tppHealth = (() => {
                 Presiona “Generar Insights” para desplegar el análisis.
               </div>
             )}
-
-                  onClick={() => void requestInsights(true)}
-                >
-                  {insightsLoading ? "Refreshing…" : "Refresh insights"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {insightsLoading ? (
-                <div className="text-sm text-slate-600">Generando insights…</div>
-              ) : null}
-              {insightsError ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                  {insightsError}
-                </div>
-              ) : null}
-              {!insightsLoading && !insightsError && insights ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
-                  {insights.insights.length ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-600">Insights</div>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                        {insights.insights.map((item, idx) => (
-                          <li key={`insight-${idx}`}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {insights.alerts.length ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-600">Alerts</div>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                        {insights.alerts.map((item, idx) => (
-                          <li key={`alert-${idx}`}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {insights.recommended_actions.length ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                        {insights.recommended_actions.map((item, idx) => (
-                          <li key={`action-${idx}`}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {insights.evidence.length ? (
-                    <div>
-                      <div className="text-xs font-semibold text-slate-600">Evidence</div>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                        {insights.evidence.map((item, idx) => (
-                          <li key={`evidence-${idx}`}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {!insightsLoading && !insightsError && !insights ? (
-                <div className="text-sm text-slate-500">
-                  Carga un CSV para generar insights automáticamente.
-                </div>
-              ) : null}
-            </CardContent>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-              <span>Last generated: {insightsGeneratedLabel}</span>
-              {insights ? <span>Confidence: {(insights.confidence * 100).toFixed(0)}%</span> : null}
-            </div>
           </Card>
         </div>
 
