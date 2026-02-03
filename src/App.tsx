@@ -1,4 +1,4 @@
-import React, { createContext, useMemo, useState } from "react";
+import React, { createContext, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardPage from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
@@ -47,6 +47,8 @@ export const CompareSettingsContext = createContext<{
   setCompare: () => {},
 });
 
+const THEME_STORAGE_KEY = "dashboardCare.theme";
+
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
     comparePrevious: true,
@@ -62,40 +64,22 @@ export default function App() {
       { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   });
-  const [theme, setTheme] = useState<ThemeMode>("light");
-
-  // Estado del tema con persistencia en localStorage
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (saved === "dark" || saved === "light") return saved;
-    }
-    return "light";
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "light";
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "dark" ? "dark" : "light";
   });
 
-  // Aplicar clase al documento y persistir cambios
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    }
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
 
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
   const themeCtx = useMemo(() => ({ theme, setTheme }), [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: setThemeState }}>
       <CompareSettingsContext.Provider value={ctx}>
         <BrowserRouter>
           <div className="bg-white min-h-screen">
