@@ -1,5 +1,5 @@
-import React, { createContext, useMemo, useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import React, { createContext, useMemo, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardPage from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
 
@@ -37,29 +37,14 @@ export const CompareSettingsContext = createContext<{
     compareWindowMonths: 12,
     datasetBounds: null,
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   },
   setCompare: () => {},
 });
-
-export const ThemeContext = createContext<{
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}>({
-  theme: "light",
-  setTheme: () => {},
-});
-
-const THEME_STORAGE_KEY = "dashboardCare.theme";
-
-const navLink =
-  "rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700";
-const navLinkActive =
-  "rounded-lg px-3 py-2 text-sm font-semibold bg-white dark:bg-slate-700 border shadow-sm";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -70,10 +55,10 @@ export default function App() {
 
     // Nombres y colores fijos (a futuro backend)
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2563eb" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#22c55e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#f59e0b" },
-      { id: "war", label: "Warning", max: null, color: "#ef4444" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0052CC" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#36B37E" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#FFAB00" },
+      { id: "war", label: "Warning", max: null, color: "#DE350B" },
     ],
   });
 
@@ -108,48 +93,15 @@ export default function App() {
   const themeCtx = useMemo(() => ({ theme, setTheme }), [theme]);
 
   return (
-    <ThemeContext.Provider value={themeCtx}>
-      <CompareSettingsContext.Provider value={ctx}>
-        <BrowserRouter>
-          <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
-            <div className="mx-auto max-w-7xl px-4 pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-slate-600 dark:text-slate-400">
-                  Janis Commerce
-                </div>
-                <div className="flex items-center gap-2">
-                  <NavLink
-                    to="/"
-                    end
-                    className={({ isActive }) =>
-                      isActive
-                        ? navLinkActive + " text-slate-900 dark:text-white border-slate-200 dark:border-slate-600"
-                        : navLink + " text-slate-700 dark:text-slate-300"
-                    }
-                  >
-                    Dashboard
-                  </NavLink>
-                  <NavLink
-                    to="/settings"
-                    className={({ isActive }) =>
-                      isActive
-                        ? navLinkActive + " text-slate-900 dark:text-white border-slate-200 dark:border-slate-600"
-                        : navLink + " text-slate-700 dark:text-slate-300"
-                    }
-                  >
-                    Settings
-                  </NavLink>
-                </div>
-              </div>
-            </div>
-
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
-      </CompareSettingsContext.Provider>
-    </ThemeContext.Provider>
+    <CompareSettingsContext.Provider value={ctx}>
+      <BrowserRouter>
+        <div className="bg-white min-h-screen">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </CompareSettingsContext.Provider>
   );
 }

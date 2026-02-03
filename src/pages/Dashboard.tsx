@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
+import { Link } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/select";
 
 /**
- * Janis Commerce - Care Executive Dashboard (React)
+ * Support Performance - Executive Dashboard (React)
  *
  * Reglas importantes:
  * - Fechas: 19/ene/26 12:47 PM (meses en español)
@@ -40,18 +41,18 @@ import {
  * - Dotación: 5 personas (Jun-2024 a Jun-2025), 3 personas (Jul-2025+)
  */
 
-// --- UI (estilo similar al screenshot) ---
+// --- UI (estilo similar al summary de Jira) ---
 const UI = {
-  pageBg: "bg-[#eef2f7]",
-  card: "bg-white border border-slate-200 rounded-xl shadow-none",
-  title: "text-sm font-semibold text-slate-700",
-  subtle: "text-xs text-slate-500",
-  primary: "#2563eb", // azul principal (no-SLA y SLA cumplido)
-  primaryLight: "#60a5fa",
-  warning: "#f97316", // naranjo (SLA incumplido)
-  danger: "#ef4444",
-  ok: "#22c55e",
-  grid: "#e5e7eb",
+  pageBg: "bg-white",
+  card: "bg-white border border-[#DFE1E6] rounded-md shadow-none",
+  title: "text-xs font-semibold text-[#172B4D] tracking-wide",
+  subtle: "text-xs text-[#5E6C84]",
+  primary: "#0052CC", // azul Jira
+  primaryLight: "#4C9AFF",
+  warning: "#FFAB00",
+  danger: "#DE350B",
+  ok: "#36B37E",
+  grid: "#DFE1E6",
 };
 
 
@@ -76,12 +77,12 @@ function roleIncluded(role: AssigneeRole, inclusion: RoleInclusion) {
 }
 
 const PIE_COLORS = [
-  "#2563eb",
-  "#60a5fa",
-  "#1d4ed8",
-  "#93c5fd",
-  "#3b82f6",
-  "#94a3b8", // Otros
+  "#2684FF", // azul
+  "#36B37E", // verde
+  "#6554C0", // morado
+  "#8777D9",
+  "#B8ACF6",
+  "#7A869A", // Otros
 ];
 
 function coalesce(a: any, b: any) {
@@ -138,8 +139,8 @@ const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
 };
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2563eb",
-  guardia: "#f97316",
+  normal: "#0052CC",
+  guardia: "#FFAB00",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
@@ -275,7 +276,9 @@ function ShiftsLegend({
           className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
           title={labels[kind as CoverageShift["kind"]]}
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind as CoverageShift["kind"]] }} />
+          <span
+            className={`shift-dot ${kind === "guardia" ? "shift-dot--guardia" : "shift-dot--normal"}`}
+          />
           {labels[kind as CoverageShift["kind"]]}
         </span>
       ))}
@@ -1240,8 +1243,10 @@ function kpiCard(
       <CardContent>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-2xl font-semibold tracking-tight text-slate-900">
-              {value}
+            <div className="flex items-center justify-center py-2">
+              <span className="text-2xl font-bold tracking-tight text-[#0052CC] leading-none">
+                {value}
+              </span>
             </div>
             {badge ? <div className="mt-2">{badge}</div> : null}
             {subtitle ? <div className={"mt-1 " + UI.subtle}>{subtitle}</div> : null}
@@ -1255,10 +1260,17 @@ function kpiCard(
 }
 
 function HealthBadge({ label, color }: { label: string; color: string }) {
+  const colorClass =
+    color === "#36B37E"
+      ? "health-badge--green"
+      : color === "#FFAB00"
+      ? "health-badge--yellow"
+      : color === "#DE350B"
+      ? "health-badge--red"
+      : "health-badge--blue";
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-      style={{ backgroundColor: "#f1f5f9", color }}
+      className={`health-badge inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${colorClass}`}
     >
       {label}
     </span>
@@ -1348,8 +1360,8 @@ function YearBars({
             <div className="flex-1">
               <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className="h-3 rounded-full"
-                  style={{ width: `${pctW}%`, backgroundColor: UI.primary }}
+                  className="year-bar-fill h-3 rounded-full"
+                  style={{ width: `${pctW}%` }}
                 />
               </div>
             </div>
@@ -1477,6 +1489,7 @@ export default function JiraExecutiveDashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filters: rango por mes (YYYY-MM)
   const [fromMonth, setFromMonth] = useState<string>("all");
@@ -2165,33 +2178,80 @@ const tppHealth = (() => {
 
   const isEmpty = rows.length === 0;
 
+  const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
+
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Janis Commerce -  Care Executive Dashboard
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Sube tu CSV y verás KPIs y gráficos. Regla SLA Response (Time to first response): &gt;= 0 (o vacío) =
-              cumplido; &lt; 0 = incumplido. Dotación: derivada del CSV (Asignado presente por mes) y configurable por roles en Settings.
-            </p>
+          <div className="flex items-center gap-3">
+            {dashboardLogo ? (
+              <img
+                src={dashboardLogo}
+                alt="Logo del Dashboard"
+                className="h-12 w-12 rounded-md border border-[#DFE1E6] bg-white object-contain"
+              />
+            ) : null}
+            <div>
+              <h1 className="text-[2rem] font-semibold tracking-tight text-[#172B4D]">
+                Support Performance
+              </h1>
+              <p className="mt-1 text-xs text-[#5E6C84]">
+                Executive dashboard with SLA, CSAT and team heatmap.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => {
-                const f = e.target.files && e.target.files[0];
-                if (f) onFile(f);
-              }}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm font-semibold text-[#172B4D]">
+              {fromMonth === "all" && toMonth === "all"
+                ? "Rango de fechas"
+                : `${fromMonth === "all" ? (autoRange.minMonth || "—") : fromMonth} - ${
+                    toMonth === "all" ? (autoRange.maxMonth || "—") : toMonth
+                  }`}
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#DFE1E6] bg-white text-[#42526E]"
+              onClick={() => setShowFilters((prev) => !prev)}
+              aria-label="Mostrar filtros"
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 6h16M7 12h10M10 18h4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <label
+              className="btn-file inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 21V9m0 0l4 4m-4-4l-4 4M5 3h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              File
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files && e.target.files[0];
+                  if (f) onFile(f);
+                }}
+              />
+            </label>
 
             <Button
-              className="text-white"
-              style={{ backgroundColor: UI.primary }}
+              className="btn-report h-10 min-w-[110px] px-3 text-sm font-semibold text-white"
               disabled={exporting || !filtered.length}
               onClick={async () => {
                 setExporting(true);
@@ -2209,10 +2269,10 @@ const tppHealth = (() => {
                   const y = now.getFullYear();
                   const m = String(now.getMonth() + 1).padStart(2, "0");
                   const d = String(now.getDate()).padStart(2, "0");
-                  const filename = `Informe_Ejecutivo_Janis_Care_${y}${m}${d}.pdf`;
+                  const filename = `Support_Performance_${y}${m}${d}.pdf`;
 
                   const html = buildExecutiveReportHtml({
-                    title: "Janis Commerce -  Care Executive Dashboard",
+                    title: "Support Performance",
                     generatedAt: now,
                     filters: {
                       fromMonth: fromMonth === "all" ? autoRange.minMonth || "all" : fromMonth,
@@ -2249,12 +2309,52 @@ const tppHealth = (() => {
                 }
               }}
             >
-              {exporting ? "Exportando…" : "Exportar Informe"}
+              <span className="inline-flex items-center gap-2">
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5v10m0 0l4-4m-4 4l-4-4M4 19h16"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {exporting ? "Report…" : "Report"}
+              </span>
             </Button>
 
-            <Button variant="outline" onClick={clearAll}>
-              Limpiar
+            <Button
+              className="btn-clean h-10 min-w-[110px] px-3 text-sm font-semibold"
+              onClick={clearAll}
+            >
+              <span className="inline-flex items-center gap-2">
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M3 16l6-6m-2 8l8-8m2 2L9 20m5-17l7 7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Clean
+              </span>
             </Button>
+            <Link
+              to="/settings"
+              className="btn-settings inline-flex h-10 w-10 items-center justify-center rounded-md"
+              aria-label="Settings"
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8 3.5a7.9 7.9 0 00-.1-1l2-1.6-2-3.4-2.4 1a7.4 7.4 0 00-1.7-1l-.4-2.6H10.6l-.4 2.6a7.4 7.4 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 000 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 001.7 1l.4 2.6h4.8l.4-2.6a7.4 7.4 0 001.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Link>
           </div>
         </div>
 
@@ -2273,6 +2373,7 @@ const tppHealth = (() => {
         ) : (
           <>
         {/* Filters */}
+        {showFilters ? (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
           <Card className={UI.card}>
             <CardContent className="p-4">
@@ -2356,6 +2457,7 @@ const tppHealth = (() => {
             </CardContent>
           </Card>
         </div>
+        ) : null}
 
         {/* KPIs */}
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
@@ -2382,7 +2484,7 @@ const tppHealth = (() => {
             kpiExtras.csat
           )}
           {kpiCard(
-            "Tickets / Persona (últimos 6 meses)",
+            "Tickets x Persona",
             kpis.tpp6m == null ? "—" : kpis.tpp6m.toFixed(1),
             "(excluye mes actual si no está cerrado)",
             undefined,
