@@ -276,7 +276,9 @@ function ShiftsLegend({
           className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-xs text-slate-700"
           title={labels[kind as CoverageShift["kind"]]}
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind as CoverageShift["kind"]] }} />
+          <span
+            className={`shift-dot ${kind === "guardia" ? "shift-dot--guardia" : "shift-dot--normal"}`}
+          />
           {labels[kind as CoverageShift["kind"]]}
         </span>
       ))}
@@ -1258,10 +1260,17 @@ function kpiCard(
 }
 
 function HealthBadge({ label, color }: { label: string; color: string }) {
+  const colorClass =
+    color === "#36B37E"
+      ? "health-badge--green"
+      : color === "#FFAB00"
+      ? "health-badge--yellow"
+      : color === "#DE350B"
+      ? "health-badge--red"
+      : "health-badge--blue";
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
-      style={{ backgroundColor: "#f1f5f9", color }}
+      className={`health-badge inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${colorClass}`}
     >
       {label}
     </span>
@@ -1351,8 +1360,8 @@ function YearBars({
             <div className="flex-1">
               <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className="h-3 rounded-full"
-                  style={{ width: `${pctW}%`, backgroundColor: UI.primary }}
+                  className="year-bar-fill h-3 rounded-full"
+                  style={{ width: `${pctW}%` }}
                 />
               </div>
             </div>
@@ -2218,8 +2227,7 @@ const tppHealth = (() => {
               </svg>
             </button>
             <label
-              className="inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: "#0F3D0F" }}
+              className="btn-file inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
             >
               <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
                 <path
@@ -2243,8 +2251,7 @@ const tppHealth = (() => {
             </label>
 
             <Button
-              className="h-10 min-w-[110px] px-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: "#2563EB" }}
+              className="btn-report h-10 min-w-[110px] px-3 text-sm font-semibold text-white"
               disabled={exporting || !filtered.length}
               onClick={async () => {
                 setExporting(true);
@@ -2317,8 +2324,7 @@ const tppHealth = (() => {
             </Button>
 
             <Button
-              className="h-10 min-w-[110px] px-3 text-sm font-semibold text-[#1F2937]"
-              style={{ backgroundColor: "#FACC15" }}
+              className="btn-clean h-10 min-w-[110px] px-3 text-sm font-semibold"
               onClick={clearAll}
             >
               <span className="inline-flex items-center gap-2">
@@ -2336,7 +2342,7 @@ const tppHealth = (() => {
             </Button>
             <Link
               to="/settings"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#1F2937] text-white"
+              className="btn-settings inline-flex h-10 w-10 items-center justify-center rounded-md"
               aria-label="Settings"
             >
               <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">

@@ -221,7 +221,9 @@ useEffect(() => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: SHIFT_KIND_COLORS[kind ?? "normal"] }} />
+              <span
+                className={`shift-dot ${kind === "guardia" ? "shift-dot--guardia" : "shift-dot--normal"}`}
+              />
               {title}
             </div>
             <div className="mt-1 text-xs text-slate-500">{description}</div>
