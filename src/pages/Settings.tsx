@@ -128,7 +128,6 @@ function Row({ children }: { children: React.ReactNode }) {
 export default function SettingsPage() {
   const { theme, setTheme } = useContext(ThemeContext);
   const { settings, setSettings, reset } = useSettings();
-  const { theme, setTheme } = useContext(ThemeContext);
 
 // Hydrate coverageShifts desde localStorage (por si el schema de settings descarta campos desconocidos)
 useEffect(() => {
