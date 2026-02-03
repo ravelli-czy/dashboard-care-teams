@@ -26,8 +26,6 @@ export type CompareSettings = {
   tppBands: TppBand[];
 };
 
-export type Theme = "light" | "dark";
-
 export const CompareSettingsContext = createContext<{
   compare: CompareSettings;
   setCompare: React.Dispatch<React.SetStateAction<CompareSettings>>;
@@ -76,7 +74,6 @@ export default function App() {
   }, [theme]);
 
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
-  const themeCtx = useMemo(() => ({ theme, setTheme }), [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme: setThemeState }}>
