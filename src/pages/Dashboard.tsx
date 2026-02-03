@@ -2191,19 +2191,35 @@ const tppHealth = (() => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => {
-                const f = e.target.files && e.target.files[0];
-                if (f) onFile(f);
-              }}
-            />
+          <div className="flex flex-wrap gap-2">
+            <label
+              className="inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
+              style={{ backgroundColor: "#22C55E" }}
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 3v12m0 0l4-4m-4 4l-4-4M5 21h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              File
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files && e.target.files[0];
+                  if (f) onFile(f);
+                }}
+              />
+            </label>
 
             <Button
-              className="text-white"
-              style={{ backgroundColor: UI.primary }}
+              className="h-10 min-w-[110px] px-3 text-sm font-semibold text-white"
+              style={{ backgroundColor: "#2563EB" }}
               disabled={exporting || !filtered.length}
               onClick={async () => {
                 setExporting(true);
@@ -2261,11 +2277,37 @@ const tppHealth = (() => {
                 }
               }}
             >
-              {exporting ? "Exportando…" : "Exportar Informe"}
+              <span className="inline-flex items-center gap-2">
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5v10m0 0l4-4m-4 4l-4-4M4 19h16"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {exporting ? "Report…" : "Report"}
+              </span>
             </Button>
 
-            <Button variant="outline" onClick={clearAll}>
-              Limpiar
+            <Button
+              className="h-10 min-w-[110px] px-3 text-sm font-semibold text-[#1F2937]"
+              style={{ backgroundColor: "#FACC15" }}
+              onClick={clearAll}
+            >
+              <span className="inline-flex items-center gap-2">
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M3 16l6-6m-2 8l8-8m2 2L9 20m5-17l7 7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Clean
+              </span>
             </Button>
           </div>
         </div>
