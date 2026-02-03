@@ -25,6 +25,8 @@ export type CompareSettings = {
   tppBands: TppBand[];
 };
 
+export type Theme = "light" | "dark";
+
 export const CompareSettingsContext = createContext<{
   compare: CompareSettings;
   setCompare: React.Dispatch<React.SetStateAction<CompareSettings>>;
@@ -60,7 +62,35 @@ export default function App() {
     ],
   });
 
+  // Estado del tema con persistencia en localStorage
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === "dark" || saved === "light") return saved;
+    }
+    return "light";
+  });
+
+  // Aplicar clase al documento y persistir cambios
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme]);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+  };
+
   const ctx = useMemo(() => ({ compare, setCompare }), [compare]);
+  const themeCtx = useMemo(() => ({ theme, setTheme }), [theme]);
 
   return (
     <CompareSettingsContext.Provider value={ctx}>
