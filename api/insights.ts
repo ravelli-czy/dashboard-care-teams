@@ -1,5 +1,10 @@
 type InsightResponse = {
   summary: string;
+  insights: string[];
+  alerts: string[];
+  recommended_actions: string[];
+  evidence: string[];
+  confidence: number;
   generatedAt: string;
 };
 
@@ -111,11 +116,12 @@ export default async function handler(req: any, res: any) {
     },
     body: JSON.stringify({
       model: "gpt-4.1-mini",
+      response_format: { type: "json_object" },
       input: [
         {
           role: "system",
           content:
-            "You are an operations analyst. Return a concise executive summary and actionable insights.",
+            "You are an operations analyst. Return only valid JSON with keys: summary, insights, alerts, recommended_actions, evidence, confidence (0-1). Keep summary concise and bullet lists short.",
         },
         {
           role: "user",
@@ -148,8 +154,27 @@ export default async function handler(req: any, res: any) {
 
   const outputText = data.output_text ?? data.output?.[0]?.content?.[0]?.text ?? "";
 
+  let parsed: any = null;
+  if (outputText) {
+    try {
+      parsed = JSON.parse(outputText);
+    } catch (err) {
+      parsed = null;
+    }
+  }
+
   const responsePayload: InsightResponse = {
-    summary: String(outputText || ""),
+    summary: String(parsed?.summary || outputText || ""),
+    insights: Array.isArray(parsed?.insights) ? parsed.insights.map((item: any) => String(item)) : [],
+    alerts: Array.isArray(parsed?.alerts) ? parsed.alerts.map((item: any) => String(item)) : [],
+    recommended_actions: Array.isArray(parsed?.recommended_actions)
+      ? parsed.recommended_actions.map((item: any) => String(item))
+      : [],
+    evidence: Array.isArray(parsed?.evidence) ? parsed.evidence.map((item: any) => String(item)) : [],
+    confidence:
+      typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? Math.max(0, Math.min(1, parsed.confidence))
+        : 0.5,
     generatedAt: new Date().toISOString(),
   };
 
