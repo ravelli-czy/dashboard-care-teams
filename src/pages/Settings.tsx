@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ThemeContext } from "../lib/theme";
 import { useSettings } from "../lib/settings";
-import { ThemeContext } from "../App";
+
 
 const UI = {
   bg: "bg-white",
