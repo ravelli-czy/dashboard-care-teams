@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
+import { Link } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -1240,7 +1241,7 @@ function kpiCard(
       <CardContent>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center justify-center border-y-2 border-[#0052CC] py-2">
+            <div className="flex items-center justify-center py-2">
               <span className="text-2xl font-bold tracking-tight text-[#0052CC] leading-none">
                 {value}
               </span>
@@ -2218,7 +2219,7 @@ const tppHealth = (() => {
             </button>
             <label
               className="inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: "#22C55E" }}
+              style={{ backgroundColor: "#0F3D0F" }}
             >
               <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
                 <path
@@ -2333,6 +2334,21 @@ const tppHealth = (() => {
                 Clean
               </span>
             </Button>
+            <Link
+              to="/settings"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#1F2937] text-white"
+              aria-label="Settings"
+            >
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm8 3.5a7.9 7.9 0 00-.1-1l2-1.6-2-3.4-2.4 1a7.4 7.4 0 00-1.7-1l-.4-2.6H10.6l-.4 2.6a7.4 7.4 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 000 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 001.7 1l.4 2.6h4.8l.4-2.6a7.4 7.4 0 001.7-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Link>
           </div>
         </div>
 
@@ -2462,7 +2478,7 @@ const tppHealth = (() => {
             kpiExtras.csat
           )}
           {kpiCard(
-            "Tickets / Persona (últimos 6 meses)",
+            "Tickets x Persona",
             kpis.tpp6m == null ? "—" : kpis.tpp6m.toFixed(1),
             "(excluye mes actual si no está cerrado)",
             undefined,
