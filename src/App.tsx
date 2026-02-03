@@ -35,19 +35,19 @@ export const CompareSettingsContext = createContext<{
     compareWindowMonths: 12,
     datasetBounds: null,
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2f6fe4" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#36b37e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#ffab00" },
-      { id: "war", label: "Warning", max: null, color: "#de350b" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0C66E4" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#22A06B" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#F5CD47" },
+      { id: "war", label: "Warning", max: null, color: "#CA3521" },
     ],
   },
   setCompare: () => {},
 });
 
 const navLink =
-  "rounded-md px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100";
+  "rounded-md px-3 py-2 text-sm font-semibold text-[#42526E] hover:bg-[#F4F5F7]";
 const navLinkActive =
-  "rounded-md px-3 py-2 text-sm font-semibold text-slate-900 bg-white border border-slate-200 shadow-sm";
+  "rounded-md px-3 py-2 text-sm font-semibold text-[#172B4D] bg-white border border-[#DFE1E6] shadow-sm";
 
 export default function App() {
   const [compare, setCompare] = useState<CompareSettings>({
@@ -58,10 +58,10 @@ export default function App() {
 
     // Nombres y colores fijos (a futuro backend)
     tppBands: [
-      { id: "cap", label: "Con Capacidad", max: 40, color: "#2f6fe4" },
-      { id: "opt", label: "Óptimo", max: 70, color: "#36b37e" },
-      { id: "lim", label: "Al Límite", max: 95, color: "#ffab00" },
-      { id: "war", label: "Warning", max: null, color: "#de350b" },
+      { id: "cap", label: "Con Capacidad", max: 40, color: "#0C66E4" },
+      { id: "opt", label: "Óptimo", max: 70, color: "#22A06B" },
+      { id: "lim", label: "Al Límite", max: 95, color: "#F5CD47" },
+      { id: "war", label: "Warning", max: null, color: "#CA3521" },
     ],
   });
 
@@ -70,10 +70,10 @@ export default function App() {
   return (
     <CompareSettingsContext.Provider value={ctx}>
       <BrowserRouter>
-        <div className="bg-[#f4f5f7] min-h-screen">
+        <div className="bg-[#F4F5F7] min-h-screen">
           <div className="mx-auto max-w-7xl px-4 pt-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-700">
+              <div className="text-sm font-semibold text-[#172B4D]">
                 Support Performance
               </div>
               <div className="flex items-center gap-2">

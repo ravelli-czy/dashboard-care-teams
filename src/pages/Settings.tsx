@@ -4,15 +4,15 @@ import { useSettings } from "../lib/settings";
 
 const UI = {
   bg: "bg-[#f4f5f7]",
-  card: "rounded-lg border border-slate-200 bg-white shadow-sm",
-  title: "text-slate-900 text-base font-semibold",
-  subtitle: "text-slate-500 text-sm",
-  label: "text-xs font-semibold text-slate-600",
+  card: "rounded-md border border-[#DFE1E6] bg-white shadow-sm",
+  title: "text-[#172B4D] text-base font-semibold",
+  subtitle: "text-[#5E6C84] text-sm",
+  label: "text-xs font-semibold text-[#6B778C]",
   input:
-    "mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400",
-  btn: "rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50",
-  btnPrimary: "rounded-md bg-[#2f6fe4] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2a63cc]",
-  chip: "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700",
+    "mt-1 w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] outline-none focus:border-[#B3D4FF]",
+  btn: "rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#42526E] hover:bg-[#F4F5F7]",
+  btnPrimary: "rounded-md bg-[#0C66E4] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0055CC]",
+  chip: "inline-flex items-center gap-2 rounded-full border border-[#DFE1E6] bg-[#F4F5F7] px-3 py-1 text-sm text-[#42526E]",
 };
 
 
@@ -44,8 +44,8 @@ const DAY_OPTIONS: Array<{ idx: number; label: string }> = DAY_LABELS.map((l, i)
 
 const COVERAGE_SHIFTS_LS_KEY = "dashboardCare.coverageShifts.v1";
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2f6fe4",
-  guardia: "#f59e0b",
+  normal: "#0C66E4",
+  guardia: "#F5CD47",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",

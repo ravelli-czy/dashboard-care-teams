@@ -40,18 +40,18 @@ import {
  * - Dotación: 5 personas (Jun-2024 a Jun-2025), 3 personas (Jul-2025+)
  */
 
-// --- UI (estilo similar al screenshot) ---
+// --- UI (estilo similar al summary de Jira) ---
 const UI = {
   pageBg: "bg-[#f4f5f7]",
-  card: "bg-white border border-slate-200 rounded-lg shadow-sm",
-  title: "text-sm font-semibold text-slate-800",
-  subtle: "text-xs text-slate-500",
-  primary: "#2f6fe4", // azul principal
-  primaryLight: "#7aa7f7",
-  warning: "#f59e0b", // alerta
-  danger: "#de350b",
-  ok: "#36b37e",
-  grid: "#e5e7eb",
+  card: "bg-white border border-[#DFE1E6] rounded-md shadow-sm",
+  title: "text-sm font-semibold text-[#172B4D]",
+  subtle: "text-xs text-[#5E6C84]",
+  primary: "#0C66E4", // azul Jira
+  primaryLight: "#4C9AFF",
+  warning: "#F5CD47",
+  danger: "#CA3521",
+  ok: "#22A06B",
+  grid: "#DFE1E6",
 };
 
 
@@ -76,12 +76,12 @@ function roleIncluded(role: AssigneeRole, inclusion: RoleInclusion) {
 }
 
 const PIE_COLORS = [
-  "#2563eb",
-  "#60a5fa",
-  "#1d4ed8",
-  "#93c5fd",
-  "#3b82f6",
-  "#94a3b8", // Otros
+  "#0C66E4",
+  "#4C9AFF",
+  "#2684FF",
+  "#579DFF",
+  "#1D7AFC",
+  "#7A869A", // Otros
 ];
 
 function coalesce(a: any, b: any) {
@@ -138,8 +138,8 @@ const DAY_TO_IDX: Record<string, number> = {
   Lun: 0, Mar: 1, Mié: 2, Jue: 3, Vie: 4, Sáb: 5, Dom: 6,
 };
 const SHIFT_KIND_COLORS: Record<NonNullable<CoverageShift["kind"]>, string> = {
-  normal: "#2f6fe4",
-  guardia: "#f59e0b",
+  normal: "#0C66E4",
+  guardia: "#F5CD47",
 };
 const DEFAULT_SHIFT_LABELS: Record<NonNullable<CoverageShift["kind"]>, string> = {
   normal: "Turno Normal",
