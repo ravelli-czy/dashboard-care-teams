@@ -1634,6 +1634,88 @@ export default function JiraExecutiveDashboard() {
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const insightsSnapshot = useMemo(() => {
+    if (!filtered.length) return null;
+    return buildInsightsSnapshot(filtered, insightsAnonymize);
+  }, [filtered, insightsAnonymize]);
+
+  const insightsDatasetHash = useMemo(() => {
+    if (!insightsSnapshot) return null;
+    return hashString(JSON.stringify(insightsSnapshot));
+  }, [insightsSnapshot]);
+
+  const requestInsights = useCallback(
+    async (force = false) => {
+      if (!insightsSnapshot || !insightsDatasetHash) return;
+      insightsAbortRef.current?.abort();
+      const controller = new AbortController();
+      insightsAbortRef.current = controller;
+      setInsightsLoading(true);
+      setInsightsError(null);
+      try {
+        const response = await fetch("/api/insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            snapshot: insightsSnapshot,
+            datasetHash: insightsDatasetHash,
+            anonymize: insightsAnonymize,
+            force,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "No se pudieron generar insights.");
+        }
+
+        const data = (await response.json()) as AiInsights;
+        setInsights({
+          summary: data.summary || "",
+          generatedAt: data.generatedAt,
+          insights: data.insights || [],
+          alerts: data.alerts || [],
+          recommended_actions: data.recommended_actions || [],
+          evidence: data.evidence || [],
+          confidence: typeof data.confidence === "number" ? data.confidence : 0.5,
+        });
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setInsightsError(err?.message || "Error generando insights.");
+      } finally {
+        setInsightsLoading(false);
+      }
+    },
+    [insightsAnonymize, insightsDatasetHash, insightsSnapshot]
+  );
+
+  useEffect(() => {
+    if (!insightsSnapshot || !insightsDatasetHash) {
+      setInsights(null);
+      setInsightsError(null);
+      setInsightsLoading(false);
+      setInsightsExpanded(false);
+      return;
+    }
+
+    if (!insightsExpanded) return;
+
+    if (insightsTimerRef.current) {
+      window.clearTimeout(insightsTimerRef.current);
+    }
+
+    insightsTimerRef.current = window.setTimeout(() => {
+      void requestInsights(false);
+    }, 600);
+
+    return () => {
+      if (insightsTimerRef.current) {
+        window.clearTimeout(insightsTimerRef.current);
+      }
+    };
+  }, [insightsDatasetHash, insightsSnapshot, insightsExpanded, requestInsights]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
