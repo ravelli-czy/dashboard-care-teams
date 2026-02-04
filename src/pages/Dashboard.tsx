@@ -2000,59 +2000,59 @@ try {
     const monthCount = latestMonth ? filtered.filter((r) => r.month === latestMonth).length : 0;
 
 
-// Tickets/Persona: promedio últimos 6 meses (sin considerar mes actual si no está cerrado)
-// Fórmula (dotación variable): KPI = TotalTickets(últimos 6 meses) / SUM(dotación_mes)
-// Dotación_mes: conteo de personas únicas en "Asignado" que aparecen en tickets creados en ese mes (y cuyo rol cuenta).
-const { inclusion: roleInclusion, map: assigneeRoleMap } = getRoleSettings(settings as any);
+    // Tickets/Persona: promedio últimos 6 meses (sin considerar mes actual si no está cerrado)
+    // Fórmula (dotación variable): KPI = TotalTickets(últimos 6 meses) / SUM(dotación_mes)
+    // Dotación_mes: conteo de personas únicas en "Asignado" que aparecen en tickets creados en ese mes (y cuyo rol cuenta).
+    const { inclusion: roleInclusion, map: assigneeRoleMap } = getRoleSettings(settings as any);
 
-const monthsSorted = Array.from(new Set(filtered.map((r) => r.month))).sort();
-const maxCreated = filtered.length ? filtered[filtered.length - 1].creada : null;
-const currentMonth = maxCreated ? ym(maxCreated) : null;
+    const monthsSorted = Array.from(new Set(filtered.map((r) => r.month))).sort();
+    const maxCreated = filtered.length ? filtered[filtered.length - 1].creada : null;
+    const currentMonth = maxCreated ? ym(maxCreated) : null;
 
-const isClosedMonth = (d: Date | null) => {
-  if (!d) return true;
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  return d.getDate() === lastDay;
-};
+    const isClosedMonth = (d: Date | null) => {
+      if (!d) return true;
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      return d.getDate() === lastDay;
+    };
 
-const monthsForAvg = (() => {
-  if (!monthsSorted.length) return [] as string[];
-  if (!maxCreated || !currentMonth) return monthsSorted;
-  if (!isClosedMonth(maxCreated)) return monthsSorted.filter((m) => m !== currentMonth);
-  return monthsSorted;
-})();
+    const monthsForAvg = (() => {
+      if (!monthsSorted.length) return [] as string[];
+      if (!maxCreated || !currentMonth) return monthsSorted;
+      if (!isClosedMonth(maxCreated)) return monthsSorted.filter((m) => m !== currentMonth);
+      return monthsSorted;
+    })();
 
-const last6 = monthsForAvg.slice(-6);
+    const last6 = monthsForAvg.slice(-6);
 
-const monthTeamSize = (m: string) => {
-  const set = new Set<string>();
-  for (const r of filtered) {
-    if (r.month !== m) continue;
-    const name = String(r.asignado || "").trim();
-    if (!name) continue;
-    const role = (assigneeRoleMap[name] as AssigneeRole | undefined) ?? "Agente";
-    if (roleIncluded(role, roleInclusion)) set.add(name);
-  }
-  return set.size;
-};
+    const monthTeamSize = (m: string) => {
+      const set = new Set<string>();
+      for (const r of filtered) {
+        if (r.month !== m) continue;
+        const name = String(r.asignado || "").trim();
+        if (!name) continue;
+        const role = (assigneeRoleMap[name] as AssigneeRole | undefined) ?? "Agente";
+        if (roleIncluded(role, roleInclusion)) set.add(name);
+      }
+      return set.size;
+    };
 
-const totalTickets6m = last6.reduce((s, m) => s + filtered.filter((r) => r.month === m).length, 0);
-const denomPeopleMonths = last6.reduce((s, m) => s + monthTeamSize(m), 0);
+    const totalTickets6m = last6.reduce((s, m) => s + filtered.filter((r) => r.month === m).length, 0);
+    const denomPeopleMonths = last6.reduce((s, m) => s + monthTeamSize(m), 0);
 
-const tpp6m = denomPeopleMonths > 0 ? totalTickets6m / denomPeopleMonths : null;
+    const tpp6m = denomPeopleMonths > 0 ? totalTickets6m / denomPeopleMonths : null;
 
-const tppHealth = (() => {
-  const tpp = (settings as any)?.tpp || {};
-  const capacityMax = Number(tpp.capacityMax ?? 40);
-  const optimalMax = Number(tpp.optimalMax ?? 70);
-  const limitMax = Number(tpp.limitMax ?? 95);
+    const tppHealth = (() => {
+      const tpp = (settings as any)?.tpp || {};
+      const capacityMax = Number(tpp.capacityMax ?? 40);
+      const optimalMax = Number(tpp.optimalMax ?? 70);
+      const limitMax = Number(tpp.limitMax ?? 95);
 
-  if (tpp6m == null) return { label: "Sin dato", color: "#94a3b8" };
-  if (tpp6m < capacityMax) return { label: "Con Capacidad", color: UI.primary };
-  if (tpp6m >= capacityMax && tpp6m <= optimalMax) return { label: "Óptimo", color: UI.ok };
-  if (tpp6m > optimalMax && tpp6m <= limitMax) return { label: "Al Límite", color: UI.warning };
-  return { label: "Warning", color: UI.danger };
-})();
+      if (tpp6m == null) return { label: "Sin dato", color: "#94a3b8" };
+      if (tpp6m < capacityMax) return { label: "Con Capacidad", color: UI.primary };
+      if (tpp6m >= capacityMax && tpp6m <= optimalMax) return { label: "Óptimo", color: UI.ok };
+      if (tpp6m > optimalMax && tpp6m <= limitMax) return { label: "Al Límite", color: UI.warning };
+      return { label: "Warning", color: UI.danger };
+    })();
 
 
     return {
@@ -2077,7 +2077,7 @@ const tppHealth = (() => {
   // Base: aplicamos filtros no-temporales (org/asignado/estado) pero dejamos variar el periodo
   const nonDateFiltered = useMemo(() => {
     return rows.filter((r) => {
-      if (orgFilter !== "all" && r.org !== orgFilter) return false;
+      if (orgFilter !== "all" && r.organization !== orgFilter) return false;
       if (assigneeFilter !== "all" && r.asignado !== assigneeFilter) return false;
       if (statusFilter !== "all" && r.estado !== statusFilter) return false;
       return true;
