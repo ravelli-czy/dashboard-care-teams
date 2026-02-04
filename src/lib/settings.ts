@@ -72,12 +72,22 @@ function safeParseSettings(raw: string | null): AppSettings | null {
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const parsed = safeParseSettings(localStorage.getItem(STORAGE_KEY));
-    return parsed ?? DEFAULT_SETTINGS;
+    if (typeof window === "undefined") return DEFAULT_SETTINGS;
+    try {
+      const parsed = safeParseSettings(localStorage.getItem(STORAGE_KEY));
+      return parsed ?? DEFAULT_SETTINGS;
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      // ignore
+    }
   }, [settings]);
 
   const api = useMemo(() => ({ settings, setSettings, reset: () => setSettings(DEFAULT_SETTINGS) }), [settings]);
