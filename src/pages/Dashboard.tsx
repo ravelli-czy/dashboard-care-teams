@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import { useSettings } from "../lib/settings";
 import { Link } from "react-router-dom";
@@ -54,6 +54,128 @@ const UI = {
   ok: "#36B37E",
   grid: "#DFE1E6",
 };
+
+type AiInsights = {
+  summary: string;
+  insights?: string[];
+  alerts?: string[];
+  recommended_actions?: string[];
+  evidence?: string[];
+  confidence?: number;
+  generatedAt: string;
+};
+
+type InsightsSnapshot = {
+  anonymized: boolean;
+  totals: {
+    tickets: number;
+    months: number;
+    dateRange: { start: string | null; end: string | null };
+  };
+  sla: {
+    responseOkPct: number;
+    responseInc: number;
+  };
+  csat: {
+    average: number | null;
+    coveragePct: number;
+  };
+  ticketsByMonth: Array<{ month: string; tickets: number }>;
+  statusBreakdown: Array<{ status: string; tickets: number }>;
+  topOrganizations: Array<{ name: string; tickets: number }>;
+  topAssignees: Array<{ name: string; tickets: number }>;
+};
+
+function hashString(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function anonymizeLabels(items: Array<{ name: string; tickets: number }>, label: string) {
+  return items.map((item, index) => ({
+    ...item,
+    name: `${label} ${index + 1}`,
+  }));
+}
+
+function buildInsightsSnapshot(rows: Row[], anonymized: boolean): InsightsSnapshot {
+  const totalTickets = rows.length;
+  const months = Array.from(new Set(rows.map((r) => r.month))).sort();
+  const createdDates = rows.map((r) => r.creada).filter((d) => d instanceof Date) as Date[];
+  const startDate = createdDates.length ? new Date(Math.min(...createdDates.map((d) => d.getTime()))) : null;
+  const endDate = createdDates.length ? new Date(Math.max(...createdDates.map((d) => d.getTime()))) : null;
+
+  let respInc = 0;
+  for (const r of rows) {
+    if (r.slaResponseStatus === "Incumplido") respInc += 1;
+  }
+  const respOkPct = totalTickets ? ((totalTickets - respInc) / totalTickets) * 100 : 0;
+
+  let csatSum = 0;
+  let csatCount = 0;
+  for (const r of rows) {
+    if (r.satisfaction == null) continue;
+    csatSum += Number(r.satisfaction) || 0;
+    csatCount += 1;
+  }
+  const csatAvg = csatCount ? csatSum / csatCount : null;
+  const csatCoverage = totalTickets ? (csatCount / totalTickets) * 100 : 0;
+
+  const countBy = (keyFn: (r: Row) => string) => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      const key = (keyFn(r) || "(Vacío)").trim();
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return Array.from(m.entries())
+      .map(([name, tickets]) => ({ name, tickets }))
+      .sort((a, b) => b.tickets - a.tickets || a.name.localeCompare(b.name));
+  };
+
+  const ticketsByMonth = countBy((r) => r.month)
+    .map((row) => ({ month: row.name, tickets: row.tickets }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  const statusBreakdown = countBy((r) => r.estado).map((row) => ({
+    status: row.name,
+    tickets: row.tickets,
+  }));
+
+  let topOrganizations = countBy((r) => r.organization).slice(0, 8);
+  let topAssignees = countBy((r) => r.asignado).slice(0, 8);
+  if (anonymized) {
+    topOrganizations = anonymizeLabels(topOrganizations, "Org");
+    topAssignees = anonymizeLabels(topAssignees, "Agente");
+  }
+
+  return {
+    anonymized,
+    totals: {
+      tickets: totalTickets,
+      months: months.length,
+      dateRange: {
+        start: startDate ? startDate.toISOString().slice(0, 10) : null,
+        end: endDate ? endDate.toISOString().slice(0, 10) : null,
+      },
+    },
+    sla: {
+      responseOkPct: respOkPct,
+      responseInc: respInc,
+    },
+    csat: {
+      average: csatAvg,
+      coveragePct: csatCoverage,
+    },
+    ticketsByMonth,
+    statusBreakdown,
+    topOrganizations,
+    topAssignees,
+  };
+}
 
 
 type AssigneeRole = "Guardia" | "Agente" | "Manager Care" | "Ignorar";
@@ -1490,6 +1612,14 @@ export default function JiraExecutiveDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [insights, setInsights] = useState<AiInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [insightsAnonymize, setInsightsAnonymize] = useState(true);
+  const [insightsExpanded, setInsightsExpanded] = useState(false);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const insightsTimerRef = useRef<number | null>(null);
+  const insightsAbortRef = useRef<AbortController | null>(null);
 
   // Filters: rango por mes (YYYY-MM)
   const [fromMonth, setFromMonth] = useState<string>("all");
@@ -1690,6 +1820,91 @@ try {
     });
   }, [rows, fromMonth, toMonth, orgFilter, assigneeFilter, statusFilter]);
 
+  const aiInsightsSnapshot = useMemo(() => {
+    if (!filtered.length) return null;
+    return buildInsightsSnapshot(filtered, insightsAnonymize);
+  }, [filtered, insightsAnonymize]);
+
+  const aiInsightsDatasetHash = useMemo(() => {
+    if (!aiInsightsSnapshot) return null;
+    return hashString(JSON.stringify(aiInsightsSnapshot));
+  }, [aiInsightsSnapshot]);
+
+  const fetchInsights = useCallback(
+    async (force = false) => {
+      if (!aiInsightsSnapshot || !aiInsightsDatasetHash) return;
+      insightsAbortRef.current?.abort();
+      const controller = new AbortController();
+      insightsAbortRef.current = controller;
+      setInsightsLoading(true);
+      setIsGeneratingInsights(true);
+      setInsightsError(null);
+      try {
+        const response = await fetch("/api/insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            snapshot: aiInsightsSnapshot,
+            datasetHash: aiInsightsDatasetHash,
+            anonymize: insightsAnonymize,
+            force,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "No se pudieron generar insights.");
+        }
+
+        const data = (await response.json()) as AiInsights;
+        setInsights({
+          summary: data.summary || "",
+          generatedAt: data.generatedAt,
+          insights: data.insights || [],
+          alerts: data.alerts || [],
+          recommended_actions: data.recommended_actions || [],
+          evidence: data.evidence || [],
+          confidence: typeof data.confidence === "number" ? data.confidence : 0.5,
+        });
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setInsightsError(err?.message || "No se pudieron generar los insights. Intenta nuevamente.");
+      } finally {
+        setInsightsLoading(false);
+        setIsGeneratingInsights(false);
+      }
+    },
+    [aiInsightsDatasetHash, aiInsightsSnapshot, insightsAnonymize]
+  );
+
+  useEffect(() => {
+    if (!aiInsightsSnapshot || !aiInsightsDatasetHash) {
+      setInsights(null);
+      setInsightsError(null);
+      setInsightsLoading(false);
+      setInsightsExpanded(false);
+      setIsGeneratingInsights(false);
+      return;
+    }
+
+    if (!insightsExpanded) return;
+
+    if (insightsTimerRef.current) {
+      window.clearTimeout(insightsTimerRef.current);
+    }
+
+    insightsTimerRef.current = window.setTimeout(() => {
+      void fetchInsights(false);
+    }, 600);
+
+    return () => {
+      if (insightsTimerRef.current) {
+        window.clearTimeout(insightsTimerRef.current);
+      }
+    };
+  }, [aiInsightsDatasetHash, aiInsightsSnapshot, insightsExpanded, fetchInsights]);
+
   const csatStatsByYear = useMemo(() => buildCsatYearStats(filtered), [filtered]);
   const slaStatsByYear = useMemo(() => buildSlaYearStats(filtered), [filtered]);
 
@@ -1707,59 +1922,59 @@ try {
     const monthCount = latestMonth ? filtered.filter((r) => r.month === latestMonth).length : 0;
 
 
-// Tickets/Persona: promedio últimos 6 meses (sin considerar mes actual si no está cerrado)
-// Fórmula (dotación variable): KPI = TotalTickets(últimos 6 meses) / SUM(dotación_mes)
-// Dotación_mes: conteo de personas únicas en "Asignado" que aparecen en tickets creados en ese mes (y cuyo rol cuenta).
-const { inclusion: roleInclusion, map: assigneeRoleMap } = getRoleSettings(settings as any);
+    // Tickets/Persona: promedio últimos 6 meses (sin considerar mes actual si no está cerrado)
+    // Fórmula (dotación variable): KPI = TotalTickets(últimos 6 meses) / SUM(dotación_mes)
+    // Dotación_mes: conteo de personas únicas en "Asignado" que aparecen en tickets creados en ese mes (y cuyo rol cuenta).
+    const { inclusion: roleInclusion, map: assigneeRoleMap } = getRoleSettings(settings as any);
 
-const monthsSorted = Array.from(new Set(filtered.map((r) => r.month))).sort();
-const maxCreated = filtered.length ? filtered[filtered.length - 1].creada : null;
-const currentMonth = maxCreated ? ym(maxCreated) : null;
+    const monthsSorted = Array.from(new Set(filtered.map((r) => r.month))).sort();
+    const maxCreated = filtered.length ? filtered[filtered.length - 1].creada : null;
+    const currentMonth = maxCreated ? ym(maxCreated) : null;
 
-const isClosedMonth = (d: Date | null) => {
-  if (!d) return true;
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  return d.getDate() === lastDay;
-};
+    const isClosedMonth = (d: Date | null) => {
+      if (!d) return true;
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      return d.getDate() === lastDay;
+    };
 
-const monthsForAvg = (() => {
-  if (!monthsSorted.length) return [] as string[];
-  if (!maxCreated || !currentMonth) return monthsSorted;
-  if (!isClosedMonth(maxCreated)) return monthsSorted.filter((m) => m !== currentMonth);
-  return monthsSorted;
-})();
+    const monthsForAvg = (() => {
+      if (!monthsSorted.length) return [] as string[];
+      if (!maxCreated || !currentMonth) return monthsSorted;
+      if (!isClosedMonth(maxCreated)) return monthsSorted.filter((m) => m !== currentMonth);
+      return monthsSorted;
+    })();
 
-const last6 = monthsForAvg.slice(-6);
+    const last6 = monthsForAvg.slice(-6);
 
-const monthTeamSize = (m: string) => {
-  const set = new Set<string>();
-  for (const r of filtered) {
-    if (r.month !== m) continue;
-    const name = String(r.asignado || "").trim();
-    if (!name) continue;
-    const role = (assigneeRoleMap[name] as AssigneeRole | undefined) ?? "Agente";
-    if (roleIncluded(role, roleInclusion)) set.add(name);
-  }
-  return set.size;
-};
+    const monthTeamSize = (m: string) => {
+      const set = new Set<string>();
+      for (const r of filtered) {
+        if (r.month !== m) continue;
+        const name = String(r.asignado || "").trim();
+        if (!name) continue;
+        const role = (assigneeRoleMap[name] as AssigneeRole | undefined) ?? "Agente";
+        if (roleIncluded(role, roleInclusion)) set.add(name);
+      }
+      return set.size;
+    };
 
-const totalTickets6m = last6.reduce((s, m) => s + filtered.filter((r) => r.month === m).length, 0);
-const denomPeopleMonths = last6.reduce((s, m) => s + monthTeamSize(m), 0);
+    const totalTickets6m = last6.reduce((s, m) => s + filtered.filter((r) => r.month === m).length, 0);
+    const denomPeopleMonths = last6.reduce((s, m) => s + monthTeamSize(m), 0);
 
-const tpp6m = denomPeopleMonths > 0 ? totalTickets6m / denomPeopleMonths : null;
+    const tpp6m = denomPeopleMonths > 0 ? totalTickets6m / denomPeopleMonths : null;
 
-const tppHealth = (() => {
-  const tpp = (settings as any)?.tpp || {};
-  const capacityMax = Number(tpp.capacityMax ?? 40);
-  const optimalMax = Number(tpp.optimalMax ?? 70);
-  const limitMax = Number(tpp.limitMax ?? 95);
+    const tppHealth = (() => {
+      const tpp = (settings as any)?.tpp || {};
+      const capacityMax = Number(tpp.capacityMax ?? 40);
+      const optimalMax = Number(tpp.optimalMax ?? 70);
+      const limitMax = Number(tpp.limitMax ?? 95);
 
-  if (tpp6m == null) return { label: "Sin dato", color: "#94a3b8" };
-  if (tpp6m < capacityMax) return { label: "Con Capacidad", color: UI.primary };
-  if (tpp6m >= capacityMax && tpp6m <= optimalMax) return { label: "Óptimo", color: UI.ok };
-  if (tpp6m > optimalMax && tpp6m <= limitMax) return { label: "Al Límite", color: UI.warning };
-  return { label: "Warning", color: UI.danger };
-})();
+      if (tpp6m == null) return { label: "Sin dato", color: "#94a3b8" };
+      if (tpp6m < capacityMax) return { label: "Con Capacidad", color: UI.primary };
+      if (tpp6m >= capacityMax && tpp6m <= optimalMax) return { label: "Óptimo", color: UI.ok };
+      if (tpp6m > optimalMax && tpp6m <= limitMax) return { label: "Al Límite", color: UI.warning };
+      return { label: "Warning", color: UI.danger };
+    })();
 
 
     return {
@@ -1784,7 +1999,7 @@ const tppHealth = (() => {
   // Base: aplicamos filtros no-temporales (org/asignado/estado) pero dejamos variar el periodo
   const nonDateFiltered = useMemo(() => {
     return rows.filter((r) => {
-      if (orgFilter !== "all" && r.org !== orgFilter) return false;
+      if (orgFilter !== "all" && r.organization !== orgFilter) return false;
       if (assigneeFilter !== "all" && r.asignado !== assigneeFilter) return false;
       if (statusFilter !== "all" && r.estado !== statusFilter) return false;
       return true;
@@ -2179,6 +2394,11 @@ const tppHealth = (() => {
   const isEmpty = rows.length === 0;
 
   const dashboardLogo = (settings as any)?.dashboardLogo as string | undefined;
+  const insightsGeneratedAt = insights?.generatedAt ? new Date(insights.generatedAt) : null;
+  const insightsGeneratedLabel =
+    insightsGeneratedAt && !Number.isNaN(insightsGeneratedAt.getTime())
+      ? insightsGeneratedAt.toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" })
+      : "—";
 
   return (
     <div className={`min-h-screen ${UI.pageBg} p-4 md:p-8`}>
@@ -2375,7 +2595,7 @@ const tppHealth = (() => {
         {/* Filters */}
         {showFilters ? (
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-5">
-          <Card className={UI.card}>
+          <Card className={`${UI.card} bg-teal-50`}>
             <CardContent className="p-4">
               <div className={UI.subtle}>Desde (mes)</div>
               <Input
@@ -2491,6 +2711,139 @@ const tppHealth = (() => {
             <HealthBadge label={kpis.tppHealth.label} color={kpis.tppHealth.color} />,
             kpiExtras.tpp
           )}
+        </div>
+
+        {/* AI Insights */}
+        <div className="mt-6">
+          <Card className={`${UI.card} bg-teal-50`}>
+            <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle className={UI.title}>AI Insights</CardTitle>
+                <p className="text-xs text-slate-500">Resumen automático del rendimiento del soporte.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={insightsAnonymize}
+                    onChange={(e) => setInsightsAnonymize(e.target.checked)}
+                    disabled={isGeneratingInsights}
+                  />
+                  Anonymize names
+                </label>
+                <Button
+                  className="h-9 px-3 text-xs"
+                  disabled={isGeneratingInsights || insightsLoading || !rows.length}
+                  onClick={() => {
+                    setInsightsError(null);
+                    setIsGeneratingInsights(true);
+                    setInsightsExpanded(true);
+                    void fetchInsights(true);
+                  }}
+                >
+                  {isGeneratingInsights || insightsLoading ? "Generando…" : "Generar Insights"}
+                </Button>
+              </div>
+            </CardHeader>
+            {insightsExpanded ? (
+              <>
+                <CardContent className="space-y-3">
+                  <style>
+                    {`
+                      @keyframes insights-shimmer {
+                        0% { transform: translateX(-100%); opacity: 0.2; }
+                        50% { opacity: 0.8; }
+                        100% { transform: translateX(200%); opacity: 0.2; }
+                      }
+                    `}
+                  </style>
+                  <div
+                    className={`transition-opacity duration-300 ${isGeneratingInsights ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                  >
+                    <div
+                      className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-md"
+                      aria-live="polite"
+                    >
+                      <div className="text-xs font-semibold text-slate-500">Generando insights</div>
+                      <div className="relative h-2.5 w-[260px] max-w-full overflow-hidden rounded-full bg-slate-200/70 md:w-[320px]">
+                        <div
+                          className="absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-emerald-300/40 via-sky-300/70 to-emerald-200/40"
+                          style={{ animation: "insights-shimmer 900ms ease-in-out infinite" }}
+                        />
+                      </div>
+                      <span className="sr-only">Generando insights…</span>
+                    </div>
+                  </div>
+                  {!isGeneratingInsights && insightsError ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 transition-opacity duration-300">
+                      {insightsError}
+                    </div>
+                  ) : null}
+                  {!isGeneratingInsights && !insightsError && insights ? (
+                    <div className="space-y-3 transition-opacity duration-300">
+                      <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
+                  {(insights.insights || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Insights</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.insights || []).map((item, idx) => (
+                          <li key={`insight-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.alerts || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Alerts</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.alerts || []).map((item, idx) => (
+                          <li key={`alert-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.recommended_actions || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Recommended actions</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.recommended_actions || []).map((item, idx) => (
+                          <li key={`action-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {(insights.evidence || []).length ? (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600">Evidence</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {(insights.evidence || []).map((item, idx) => (
+                          <li key={`evidence-${idx}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                    </div>
+                  ) : null}
+                  {!isGeneratingInsights && !insightsError && !insights ? (
+                    <div className="text-sm text-slate-500 transition-opacity duration-300">
+                      Carga un CSV para generar insights cuando presiones el botón.
+                    </div>
+                  ) : null}
+                </CardContent>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+                  <span>Last generated: {insightsGeneratedLabel}</span>
+                  {insights ? (
+                    <span>Confidence: {((insights.confidence ?? 0.5) * 100).toFixed(0)}%</span>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="px-4 pb-4 text-xs text-slate-500">
+                Presiona “Generar Insights” para desplegar el análisis.
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* Charts */}
