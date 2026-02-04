@@ -1617,6 +1617,7 @@ export default function JiraExecutiveDashboard() {
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [insightsAnonymize, setInsightsAnonymize] = useState(true);
   const [insightsExpanded, setInsightsExpanded] = useState(false);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const insightsTimerRef = useRef<number | null>(null);
   const insightsAbortRef = useRef<AbortController | null>(null);
 
@@ -1918,6 +1919,7 @@ try {
       const controller = new AbortController();
       insightsAbortRef.current = controller;
       setInsightsLoading(true);
+      setIsGeneratingInsights(true);
       setInsightsError(null);
       try {
         const response = await fetch("/api/insights", {
@@ -1949,9 +1951,10 @@ try {
         });
       } catch (err: any) {
         if (err?.name === "AbortError") return;
-        setInsightsError(err?.message || "Error generando insights.");
+        setInsightsError(err?.message || "No se pudieron generar los insights. Intenta nuevamente.");
       } finally {
         setInsightsLoading(false);
+        setIsGeneratingInsights(false);
       }
     },
     [aiInsightsDatasetHash, aiInsightsSnapshot, insightsAnonymize]
@@ -1963,6 +1966,7 @@ try {
       setInsightsError(null);
       setInsightsLoading(false);
       setInsightsExpanded(false);
+      setIsGeneratingInsights(false);
       return;
     }
 
@@ -2806,34 +2810,60 @@ try {
                     className="h-4 w-4"
                     checked={insightsAnonymize}
                     onChange={(e) => setInsightsAnonymize(e.target.checked)}
+                    disabled={isGeneratingInsights}
                   />
                   Anonymize names
                 </label>
                 <Button
                   className="h-9 px-3 text-xs"
-                  disabled={insightsLoading || !rows.length}
+                  disabled={isGeneratingInsights || insightsLoading || !rows.length}
                   onClick={() => {
+                    setInsightsError(null);
+                    setIsGeneratingInsights(true);
                     setInsightsExpanded(true);
                     void fetchInsights(true);
                   }}
                 >
-                  {insightsLoading ? "Generando…" : "Generar Insights"}
+                  {isGeneratingInsights || insightsLoading ? "Generando…" : "Generar Insights"}
                 </Button>
               </div>
             </CardHeader>
             {insightsExpanded ? (
               <>
                 <CardContent className="space-y-3">
-                  {insightsLoading ? (
-                    <div className="text-sm text-slate-600">Generando insights…</div>
-                  ) : null}
-                  {insightsError ? (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                  <style>
+                    {`
+                      @keyframes insights-shimmer {
+                        0% { transform: translateX(-100%); opacity: 0.2; }
+                        50% { opacity: 0.8; }
+                        100% { transform: translateX(200%); opacity: 0.2; }
+                      }
+                    `}
+                  </style>
+                  <div
+                    className={`transition-opacity duration-300 ${isGeneratingInsights ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                  >
+                    <div
+                      className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-md"
+                      aria-live="polite"
+                    >
+                      <div className="text-xs font-semibold text-slate-500">Generando insights</div>
+                      <div className="relative h-2.5 w-[260px] max-w-full overflow-hidden rounded-full bg-slate-200/70 md:w-[320px]">
+                        <div
+                          className="absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-emerald-300/40 via-sky-300/70 to-emerald-200/40"
+                          style={{ animation: "insights-shimmer 900ms ease-in-out infinite" }}
+                        />
+                      </div>
+                      <span className="sr-only">Generando insights…</span>
+                    </div>
+                  </div>
+                  {!isGeneratingInsights && insightsError ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 transition-opacity duration-300">
                       {insightsError}
                     </div>
                   ) : null}
-                  {!insightsLoading && !insightsError && insights ? (
-                    <div className="space-y-3">
+                  {!isGeneratingInsights && !insightsError && insights ? (
+                    <div className="space-y-3 transition-opacity duration-300">
                       <p className="text-sm text-slate-700">{insights.summary || "Sin resumen disponible."}</p>
                   {(insights.insights || []).length ? (
                     <div>
@@ -2877,8 +2907,8 @@ try {
                   ) : null}
                     </div>
                   ) : null}
-                  {!insightsLoading && !insightsError && !insights ? (
-                    <div className="text-sm text-slate-500">
+                  {!isGeneratingInsights && !insightsError && !insights ? (
+                    <div className="text-sm text-slate-500 transition-opacity duration-300">
                       Carga un CSV para generar insights cuando presiones el botón.
                     </div>
                   ) : null}
